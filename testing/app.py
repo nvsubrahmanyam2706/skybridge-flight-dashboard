@@ -39,7 +39,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 load_dotenv()
 AVIATION_KEY = os.getenv("AVIATIONSTACK_API_KEY", "").strip()
  
-APP = Flask(__name__, static_folder="static", template_folder="templates")
+app = Flask(__name__, static_folder="static", template_folder="templates")
 
  
 # Default test callsigns (hardcoded - change in UI or here)
