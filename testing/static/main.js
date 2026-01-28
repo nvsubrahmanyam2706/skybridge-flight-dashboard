@@ -1,313 +1,265 @@
-// main.js - frontend for hybrid tracker
+// SKYBRIDGE — Executive Flight Intelligence Frontend (Final Cockpit Logic)
 
-let map, markerLayer, polylineLayer;
-let markers = {};
-let polylines = {};
-let cardMap = {}; // callsign → DOM element
-const DEFAULT_CALLSIGNS = ""; // removed default list
+let map, markerLayer;
+let activeMarker = null;
 
 function initMap() {
   map = L.map("flights-map").setView([20, 0], 2);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(map);
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 18
+  }).addTo(map);
+
   markerLayer = L.layerGroup().addTo(map);
-  polylineLayer = L.layerGroup().addTo(map);
 }
 
+/* ============================================================
+   PLANE ICON
+   ============================================================ */
 
-function planeIconSVG(color="#0b61ff") {
-  const svg = `
-  <svg width="48" height="48" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <path d="M21 16L13 12V7l2-2-2 1-3 1-3-1 2 2v5L3 16l3 1 1 3 3-2v3l2 1 2-1v-3l3 2 1-3 3-1z" fill="${color}"/>
-  </svg>`;
-  return L.divIcon({ html: svg, className: "plane-icon", iconSize: [48,48], iconAnchor: [24,24] });
+function planeIcon() {
+  return L.divIcon({
+    className: "plane-marker",
+    html: `
+      <svg width="42" height="42" viewBox="0 0 24 24" fill="#00ff9c">
+        <path d="M21 16L13 12V7l2-2-2 1-3 1-3-1 2 2v5L3 16l3 1 1 3 3-2v3l2 1 2-1v-3l3 2 1-3 3-1z"/>
+      </svg>
+    `,
+    iconSize: [42, 42],
+    iconAnchor: [21, 21],
+    popupAnchor: [0, -22]
+  });
 }
 
-function rotateSVG(element, angle) {
-  if (!element) return;
-  element.style.transform = `rotate(${angle}deg)`;
-  element.style.transformOrigin = "24px 24px";
+/* ============================================================
+   MODAL
+   ============================================================ */
+
+const modal = document.getElementById("trip-modal");
+const addBtn = document.getElementById("add-trip-btn");
+const cancelBtn = document.getElementById("cancel-btn");
+const saveBtn = document.getElementById("save-btn");
+
+addBtn.onclick = () => {
+  modal.classList.remove("hidden");
+  resetModalForm();
+};
+
+cancelBtn.onclick = () => modal.classList.add("hidden");
+
+/* ============================================================
+   RESET FORM
+   ============================================================ */
+
+function resetModalForm() {
+  leader_name.value = "";
+  travel_date.value = "";
+  airline_iata.value = "";
+  flight_number.value = "";
+  from_airport.value = "";
+  from_terminal.value = "";
+  dep_time.value = "";
+  to_airport.value = "";
+  to_terminal.value = "";
+  arr_time.value = "";
 }
 
-function buildCard(f) {
-  const div = document.createElement("div");
-  div.className = "flight-card";
+/* ============================================================
+   SAVE TRIP
+   ============================================================ */
 
-  const status = f.status || "unknown";
-  div.classList.add(`${status}-card`);
+saveBtn.onclick = async () => {
+  const payload = {
+    leader_name: leader_name.value,
+    travel_date: travel_date.value,
+    airline_iata: airline_iata.value,
+    flight_number: flight_number.value,
+    from_airport: from_airport.value,
+    from_terminal: from_terminal.value,
+    dep_time: dep_time.value,
+    to_airport: to_airport.value,
+    to_terminal: to_terminal.value,
+    arr_time: arr_time.value,
+  };
 
-  div.dataset.callsign = f.callsign;
+  const res = await fetch("/api/add-trip", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
 
-
-  const iata = f.iata || "";
-  const dep = f.aviation && f.aviation.departure ? (f.aviation.departure.airport || "Unknown") : "Unknown";
-  const arr = f.aviation && f.aviation.arrival ? (f.aviation.arrival.airport || "Unknown") : "Unknown";
-  const eta =
-  f.aviation?.arrival?.estimated
-    ? new Date(f.aviation.arrival.estimated).toLocaleString([], {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit"
-      })
-    : "Unknown";
-
-
-  div.innerHTML = `
-     <div class="status-ring ${status}-ring"></div>
-     
-     <div class="card-row">
-    <div>
-      <div class="flight-name">${f.callsign}</div>
-      <div class="flight-code">${iata}</div>
-      ${f.leader ? `<div class="leader-name">Leader: ${f.leader}</div>` : ""}
-    </div>
-    <div class="status-pill ${status}">${status}</div>
-  </div>
-
-  <div class="card-row">
-    <div>
-      <div class="airport-code">${(f.aviation?.departure?.iata || "UNK")}</div>
-      <div class="airport-city">${dep}</div>
-    </div>
-
-    <div class="center-arrow">
-      <div>—— ✈ ——</div>
-      <div class="eta-text">ETA: ${eta}</div>
-    </div>
-
-    <div>
-      <div class="airport-code">${(f.aviation?.arrival?.iata || "UNK")}</div>
-      <div class="airport-city">${arr}</div>
-    </div>
-  </div>
-
-  <div class="gate-info">
-    Gate / Terminal: <b>${f.aviation?.departure?.terminal || "N/A"}</b>
-  </div>
-`;
-
-  div.addEventListener("click", () => focusOnFlight(f.callsign));
-  return div;
-}
-
-async function loadFlights(callsigns, fromButton=false) {
-  document.getElementById("loader").classList.remove("hidden");
-
-  if (fromButton) {
-      window.manualLoad = true;   // user clicked button → full refresh allowed
-      document.getElementById("cards").innerHTML = "";
+  const data = await res.json();
+  if (data.status === "ok") {
+    alert("Trip Saved");
+    modal.classList.add("hidden");
+    loadTrips();
   }
-  if (!callsigns || callsigns.trim() === "") {
-    return; // nothing to load if input is empty
-  }
+};
 
-  try {
-    // Extract just callsigns (remove "-leader" part)
-    let cleaned = callsigns
-      .split(",")
-      .map(x => x.split("-")[0].trim())
-      .join(",");
+/* ============================================================
+   LOAD TRIPS
+   ============================================================ */
+async function loadTrips() {
+  const res = await fetch("/api/trips");
+  const trips = await res.json();
 
-    const url = `/api/flights?callsigns=${encodeURIComponent(cleaned)}`;
+  const cards = document.getElementById("cards");
+  cards.innerHTML = "";
 
-    const res = await fetch(url);
-    const data = await res.json();
-    renderFlights(data.flights || []);
-    document.getElementById("loader").classList.add("hidden");
+  trips.forEach(t => {
+    const card = document.createElement("div");
+    card.className = "flight-card";
+    card.id = `card-${t.id}`;
+    card.innerHTML = `
+      <div class="card-row">
+        <div>
+          <div class="flight-name">${t.callsign}</div>
+          <div class="leader-name">Leader: ${t.leader_name}</div>
+        </div>
 
-  } catch (err) {
-    console.error("Failed to load flights:", err);
-  }
+        <div class="status-slot" id="status-${t.callsign}"></div>
+
+        <button class="delete-btn" onclick="deleteTrip(${t.id})">Delete</button>
+      </div>
+
+      <div class="route-row">
+        ${t.from_airport} → ${t.to_airport}
+      </div>
+
+      <div class="time-row">
+        ${t.dep_time} → ${t.arr_time}
+      </div>
+    `;
+
+    card.onclick = () => focusFlight(t.callsign, t.leader_name, t.id);
+    cards.appendChild(card);
+  });
+
+  // 🔥 THIS WAS MISSING
+  updateSummaryCounters();
 }
 
-function updateCard(card, f) {
-  // reset status glow
-  card.classList.remove("live-card", "landed-card", "unknown-card", "scheduled-card");
-// apply new status glow
-  const status = f.status || "unknown";
-  card.classList.add(`${status}-card`);
-  card.querySelector(".flight-name").textContent = f.callsign || "";
-  card.querySelector(".flight-code").textContent = f.iata || "";
-  card.querySelector(".status-pill").textContent = f.status || "unknown";
+/* ============================================================
+   UPDATE SUMMARY COUNTERS
+   ============================================================ */
 
-  // Departure IATA + city
-  card.querySelectorAll(".airport-code")[0].textContent =
-      f.aviation?.departure?.iata || "UNK";
-  card.querySelectorAll(".airport-city")[0].textContent =
-      f.aviation?.departure?.airport || "Unknown";
+function updateSummaryCounters() {
+  const cards = document.querySelectorAll(".flight-card");
 
-  // Arrival IATA + city
-  card.querySelectorAll(".airport-code")[1].textContent =
-      f.aviation?.arrival?.iata || "UNK";
-  card.querySelectorAll(".airport-city")[1].textContent =
-      f.aviation?.arrival?.airport || "Unknown";
+  let total = cards.length;
+  let active = 0;
+  let scheduled = 0;
+  let landed = 0;
+  let unknown = 0;
 
-  // ETA
- const eta =
-  f.aviation?.arrival?.estimated
-    ? new Date(f.aviation.arrival.estimated).toLocaleString([], {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit"
-      })
-    : "Unknown";
+  cards.forEach(card => {
+    const pill = card.querySelector(".status-pill");
 
-  card.querySelector(".eta-text").textContent = `ETA: ${eta}`;
-}
+    if (!pill) {
+      unknown++;
+      return;
+    }
 
-function updateSummaryCounters(flights) {
-  let total = flights.length;
-  let live = flights.filter(f => f.status === "live").length;
-  let landed = flights.filter(f => f.status === "landed").length;
-  let scheduled = flights.filter(f => f.status === "scheduled").length;
-  let unknown = flights.filter(f => f.status === "unknown").length;
+    const status = pill.textContent.trim().toLowerCase();
+
+    if (status === "active") active++;
+    else if (status === "scheduled") scheduled++;
+    else if (status === "landed") landed++;
+    else unknown++;
+  });
 
   document.getElementById("sum-total").textContent = total;
-  document.getElementById("sum-live").textContent = live;
-  document.getElementById("sum-landed").textContent = landed;
+  document.getElementById("sum-active").textContent = active;
   document.getElementById("sum-scheduled").textContent = scheduled;
+  document.getElementById("sum-landed").textContent = landed;
   document.getElementById("sum-unknown").textContent = unknown;
 }
 
-function renderFlights(flights) {
-// Read raw input again to extract leader names
-const raw = document.getElementById("callsign-input").value;
+/* ============================================================
+   DELETE TRIP
+   ============================================================ */
 
-// Build a map callsign → leader name
-let leaderMap = {};
-raw.split(",").forEach(x => {
-    let parts = x.trim().split("-");
-    if (parts.length === 2) {
-        leaderMap[parts[0].trim().toUpperCase()] = parts[1].trim();
-    }
-});
+async function deleteTrip(id) {
+  if (!confirm("Delete this trip?")) return;
 
-// Attach leader to each flight
-flights.forEach(f => {
-    f.leader = leaderMap[f.callsign] || "";
-});
+  await fetch(`/api/delete-trip/${id}`, { method: "DELETE" });
 
-const cards = document.getElementById("cards");
+  // Remove marker if exists
+  if (activeMarker) {
+    markerLayer.clearLayers();
+    activeMarker = null;
+  }
 
-// Do NOT clear cards on polling — only clear on manual load
-if (!window.manualLoad) {
-    // update mode → do not remove cards
-} else {
-    cards.innerHTML = "";
-    cardMap = {}; 
-    window.manualLoad = false;
+  loadTrips();
+  setTimeout(updateSummaryCounters, 200);
 }
 
- // markerLayer.clearLayers();
-  //polylineLayer.clearLayers();
-  //markers = {};
-  //polylines = {};
 
-  const coords = [];
+/* ============================================================
+   FOCUS FLIGHT
+   ============================================================ */
 
-  flights.forEach(f => {
-    let existingCard = cardMap[f.callsign];
-    if (!existingCard) {
-      const card = buildCard(f);
-      cardMap[f.callsign] = card;
-      cards.appendChild(card);
-    } else {
-      updateCard(existingCard, f);
-    }
+async function focusFlight(callsign, leader, id) {
+  const res = await fetch(`/api/flight/${callsign}`);
+  const data = await res.json();
 
+  // Remove old marker always
+  markerLayer.clearLayers();
+  activeMarker = null;
 
+  if (!data.flight) {
+    alert("No flight data available.");
+    return;
+  }
 
+  const live = data.flight.live;
 
-  });
-  updateSummaryCounters(flights);
-}
+  // ✅ STATUS DERIVATION LOGIC (IMPORTANT FIX)
+  let status = data.flight.status || "unknown";
 
-function focusOnFlight(callsign) {
-  // 🔹 Fetch latest data ONLY when clicked
-  fetch(`/api/flights?callsigns=${encodeURIComponent(callsign)}`)
-    .then(r => r.json())
-    .then(data => {
-      const f = data.flights && data.flights[0];
-      if (!f) return;
+  // If live coordinates exist → flight is ACTIVE
+  if (live && (!status || status === "unknown")) {
+    status = "active";
+  }
 
-      if (!f.opensky || f.opensky.lat == null || f.opensky.lon == null) {
-        alert(`No live position for ${callsign}`);
-        return;
-      }
+  // If still no live → stop here (but status may be scheduled/unknown)
+  if (!live) {
+    alert("No live position for this flight yet.");
+  } else {
+    const lat = live.latitude;
+    const lon = live.longitude;
 
-      // 🔹 Clear previous markers (single-flight focus)
-      markerLayer.clearLayers();
-      markers = {};
+    const marker = L.marker([lat, lon], { icon: planeIcon() }).addTo(markerLayer);
+    activeMarker = marker;
 
-      const lat = f.opensky.lat;
-      const lon = f.opensky.lon;
+    marker.bindPopup(`
+      <b>${callsign}</b><br/>
+      Leader: ${leader}<br/>
+      Status: ${status.toUpperCase()}
+    `).openPopup();
 
-      const icon = planeIconSVG("#0b61ff");
-      const m = L.marker([lat, lon], { icon }).addTo(markerLayer);
-      markers[callsign] = m;
-      // 🔹 Marker popup: callsign + leader
-    const leaderText =
-      cardMap[callsign]?.querySelector(".leader-name")?.textContent || "Leader: N/A";
-
-    m.bindPopup(
-      `<b>${callsign}</b><br>${leaderText}`,
-      {
-        closeButton: false,   // ❌ remove cross
-        autoClose: true,      // closes when clicking elsewhere
-        closeOnClick: true    // clicking map closes popup
-      }
+    map.setView([lat, lon], 6);
+  }
   
-    );
+  // ✅ update badge on card ONLY after API call
+  const statusSlot = document.getElementById(`status-${callsign}`);
+  if (statusSlot) {
+    statusSlot.innerHTML = `
+      <div class="status-pill ${status}">
+        ${status.toUpperCase()}
+      </div>
+    `;
+  }
+  updateSummaryCounters();
 
-
-      // 🔹 Rotate plane if heading exists
-      setTimeout(() => {
-        const el = m.getElement();
-        if (!el) return;
-        const svg = el.querySelector("svg");
-        if (svg && f.opensky.heading != null) {
-          rotateSVG(svg, f.opensky.heading);
-        }
-      }, 80);
-
-      map.setView([lat, lon], 6);
-    })
-    .catch(e => console.error(e));
 }
 
 
-function isTabActive() {
-  return document.visibilityState === "visible";
-}
+/* ============================================================
+   INIT
+   ============================================================ */
 
-
-function startPolling() {
-  setInterval(() => {
-    if (!isTabActive()) return; // 🚫 skip if tab not visible
-
-    const cs = document.getElementById("callsign-input").value;
-    if (cs && cs.trim() !== "") {
-      loadFlights(cs, false);
-    }
-  }, 30000);
-}
-
-
-window.addEventListener("DOMContentLoaded", () => {
+window.onload = () => {
   initMap();
-
-  // remove auto-fill
-  document.getElementById("callsign-input").value = "";
-
-  // load only when user clicks the button
-  document.getElementById("load-btn").addEventListener("click", () => {
-    const cs = document.getElementById("callsign-input").value;
-    loadFlights(cs,true);
-  });
-
-  // start polling (only acts when input is not empty)
-  startPolling();
-});
+  loadTrips();
+};
