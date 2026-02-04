@@ -30,51 +30,147 @@
   <div>Unknown: <span id="sum-unknown">0</span></div>
 </div>
 
-
 <!-- ============================================================
-  MAP
+  MAIN LAYOUT (LEFT: CARDS | RIGHT: MAP)
 ============================================================ -->
-<div id="map-container">
-  <div id="flights-map"></div>
+<div class="main-layout">
+
+  <!-- ============================================================
+    LEFT PANEL — FLIGHT OPS
+  ============================================================ -->
+  <section class="flight-status-area side-panel">
+    <h2 class="section-title">Leadership Flight Ops</h2>
+    <div id="cards" class="cards-vertical"></div>
+  </section>
+
+  <!-- ============================================================
+    RIGHT PANEL — MAP
+  ============================================================ -->
+  <div id="map-container" class="map-panel">
+    <div id="flights-map"></div>
+  </div>
+
 </div>
-
-<!-- ============================================================
-  FLIGHT OPS
-============================================================ -->
-<section class="flight-status-area">
-  <h2 class="section-title">Leadership Flight Ops</h2>
-  <div id="cards" class="cards-area"></div>
-</section>
 
 <!-- ============================================================
   ADD TRIP MODAL
 ============================================================ -->
 <div id="trip-modal" class="modal hidden">
-  <div class="modal-box">
+  <form class="modal-box" autocomplete="off">
+
 
     <h2>Add Flight Trip</h2>
 
-    <!-- Leader -->
-    <input id="leader_name" type="text" placeholder="Leader Name" required>
+    <!-- Coordinator Info -->
+    <div class="form-group">
+      <label for="coordinator_name">Coordinator Name</label>
+      <input
+        id="coordinator_name"
+        type="text"
+        placeholder="Enter coordinator name"
+        required
+      />
+    </div>
 
-    <!-- Travel Date (Calendar) -->
-    <input id="travel_date" type="date" required>
+    <div class="form-group">
+      <label for="employee_code">Employee Code</label>
+      <input
+        id="employee_code"
+        type="text"
+        placeholder="Enter employee code"
+        required
+      />
+    </div>
 
-    <!-- Airline + Flight -->
-    <input id="airline_iata" type="text" placeholder="Airline IATA (AI, EK, NH)" required>
-    <input id="flight_number" type="text" placeholder="Flight Number" required>
+    <!-- Flight Info -->
+    <div class="form-group">
+      <label for="leader_name">Leader Name</label>
+      <input
+        id="leader_name"
+        type="text"
+        placeholder="Enter leader name"
+        required
+      />
+    </div>
 
-    <!-- Departure -->
-    <input id="from_airport" type="text" placeholder="From Airport (HKG)" required>
-    <input id="from_terminal" type="text" placeholder="From Terminal">
-    <input id="dep_time" type="time" required>
+    <div class="form-group">
+      <label for="travel_date">Date of Travel</label>
+      <input
+        id="travel_date"
+        type="date"
+        placeholder="Select travel date"
+        required
+      />
+    </div>
 
-    <!-- Arrival -->
-    <input id="to_airport" type="text" placeholder="To Airport (HND)" required>
-    <input id="to_terminal" type="text" placeholder="To Terminal">
-    <input id="arr_time" type="time" required>
+    <div class="form-group">
+      <label for="flight_number">Flight Number</label>
+      <input
+        id="flight_number"
+        type="text"
+        placeholder="e.g. EK202, LH760"
+        required
+      />
+    </div>
 
-    <!-- Actions -->
+    <div class="form-group">
+      <label for="from_airport">From Airport (IATA)</label>
+      <input
+        id="from_airport"
+        type="text"
+        placeholder="e.g. DXB"
+        required
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="from_terminal">From Terminal</label>
+      <input
+        id="from_terminal"
+        type="text"
+        placeholder="e.g. T3"
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="dep_time">Departure Time (IST)</label>
+      <input
+        id="dep_time"
+        type="time"
+        placeholder="Select departure time"
+        required
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="to_airport">To Airport (IATA)</label>
+      <input
+        id="to_airport"
+        type="text"
+        placeholder="e.g. JFK"
+        required
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="to_terminal">To Terminal</label>
+      <input
+        id="to_terminal"
+        type="text"
+        placeholder="e.g. T4"
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="arr_time">Arrival Time (IST)</label>
+      <input
+        id="arr_time"
+        type="time"
+        placeholder="Select arrival time"
+        required
+      />
+    </div>
+
     <div class="modal-actions">
       <button id="cancel-btn">Cancel</button>
       <button id="save-btn">Save Trip</button>
@@ -84,10 +180,56 @@
 </div>
 
 <!-- ============================================================
+  DATABASE MODAL
+============================================================ -->
+<div id="database-modal" class="modal hidden">
+  <div class="modal-box database-box">
+
+    <div class="db-header">
+      <h2>Trip Database</h2>
+      <div class="db-actions">
+        <button id="export-csv-btn" class="export-btn">Export CSV</button>
+        <button id="close-db-btn">Close</button>
+      </div>
+    </div>
+
+    <div class="db-table-wrapper">
+      <table id="db-table">
+        <thead>
+          <tr>
+            <th>Trip ID</th>
+            <th>Coordinator</th>
+            <th>Emp Code</th>
+            <th>Leader</th>
+            <th>From</th>
+            <th>To</th>
+            <th>Date</th>
+            <th>Dep Time</th>
+            <th>Arr Time</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="db-table-body">
+          <!-- rows injected via JS -->
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- DATABASE BUTTON (BOTTOM FIXED) -->
+<button id="database-btn" class="database-btn">
+  DATABASE
+</button>
+
+<!-- ============================================================
   SCRIPTS
 ============================================================ -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/static/main.js"></script>
+
+
 
 </body>
 </html>

@@ -11,6 +11,7 @@ if not hasattr(pkgutil, "get_loader"):
 
 import os
 import sqlite3
+import time
 import requests
 import urllib3
 from flask import Flask, render_template, request, jsonify
@@ -43,10 +44,9 @@ def init_db():
     c.execute("""
     CREATE TABLE IF NOT EXISTS trips (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        coordinator_name TEXT,
-        employee_code TEXT,
         leader_name TEXT,
         travel_date TEXT,
+        airline_iata TEXT,
         flight_number TEXT,
         callsign TEXT,
         from_airport TEXT,
@@ -54,19 +54,23 @@ def init_db():
         dep_time TEXT,
         to_airport TEXT,
         to_terminal TEXT,
-        arr_time TEXT,
-        status TEXT DEFAULT 'UNKNOWN'
+        arr_time TEXT
     )
     """)
 
     conn.commit()
     conn.close()
 
+
 init_db()
 
 # -------------------------------------------------
 # HELPERS
 # -------------------------------------------------
+
+def make_callsign(airline_iata, flight_number):
+    return f"{airline_iata.upper()}{flight_number.strip()}"
+
 
 def fetch_flight_data(callsign):
     if not AVIATION_KEY:
@@ -79,20 +83,19 @@ def fetch_flight_data(callsign):
     }
 
     try:
-        r = requests.get(
-            AVIATIONSTACK_ENDPOINT,
-            params=params,
-            timeout=12,
-            verify=False
-        )
+        r = requests.get(AVIATIONSTACK_ENDPOINT, params=params, timeout=12, verify=False)
         r.raise_for_status()
         data = r.json().get("data", [])
+
         if data:
-            return data[0]
+            return data[0]   # return single flight object
+
     except Exception as e:
         print("AviationStack Error:", e)
 
     return None
+
+
 
 # -------------------------------------------------
 # ROUTES
@@ -102,32 +105,28 @@ def fetch_flight_data(callsign):
 def index():
     return render_template("index.html")
 
+
 # -------------------- ADD TRIP --------------------
 @APP.route("/api/add-trip", methods=["POST"])
 def add_trip():
     data = request.json
-    callsign = data["flight_number"].strip().upper()
 
-    import re
-    if not re.match(r"^[A-Z0-9]{1,3}[0-9]{1,4}$", callsign):
-        return jsonify({"error": "Invalid flight number"}), 400
+    callsign = make_callsign(data["airline_iata"], data["flight_number"])
 
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
 
     c.execute("""
         INSERT INTO trips (
-            coordinator_name, employee_code,
-            leader_name, travel_date, flight_number, callsign,
+            leader_name, travel_date, airline_iata, flight_number, callsign,
             from_airport, from_terminal, dep_time,
-            to_airport, to_terminal, arr_time, status
+            to_airport, to_terminal, arr_time
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
-        data["coordinator_name"],
-        data["employee_code"],
         data["leader_name"],
         data["travel_date"],
+        data["airline_iata"],
         data["flight_number"],
         callsign,
         data["from_airport"],
@@ -135,52 +134,18 @@ def add_trip():
         data["dep_time"],
         data["to_airport"],
         data["to_terminal"],
-        data["arr_time"],
-        "UNKNOWN"
+        data["arr_time"]
     ))
 
     conn.commit()
     conn.close()
+
     return jsonify({"status": "ok"})
 
-# -------------------- LOAD TRIPS (UI) --------------------
+
+# -------------------- LOAD TRIPS --------------------
 @APP.route("/api/trips")
 def get_trips():
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-
-    # 🔥 Hide ENDED trips from UI
-    c.execute("""
-        SELECT * FROM trips
-        ORDER BY id DESC
-    """)
-    rows = c.fetchall()
-    conn.close()
-
-    trips = []
-    for r in rows:
-        trips.append({
-            "id": r[0],
-            "coordinator_name": r[1],
-            "employee_code": r[2],
-            "leader_name": r[3],
-            "travel_date": r[4],
-            "flight_number": r[5],
-            "callsign": r[6],
-            "from_airport": r[7],
-            "from_terminal": r[8],
-            "dep_time": r[9],
-            "to_airport": r[10],
-            "to_terminal": r[11],
-            "arr_time": r[12],
-            "status": r[13]
-        })
-
-    return jsonify(trips)
-
-# -------------------- LOAD ALL TRIPS (DATABASE VIEW) --------------------
-@APP.route("/api/trips-all")
-def get_all_trips():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
 
@@ -192,90 +157,61 @@ def get_all_trips():
     for r in rows:
         trips.append({
             "id": r[0],
-            "coordinator_name": r[1],
-            "employee_code": r[2],
-            "leader_name": r[3],
-            "travel_date": r[4],
-            "flight_number": r[5],
-            "callsign": r[6],
-            "from_airport": r[7],
-            "from_terminal": r[8],
-            "dep_time": r[9],
-            "to_airport": r[10],
-            "to_terminal": r[11],
-            "arr_time": r[12],
-            "status": r[13]
+            "leader_name": r[1],
+            "travel_date": r[2],
+            "airline_iata": r[3],
+            "flight_number": r[4],
+            "callsign": r[5],
+            "from_airport": r[6],
+            "from_terminal": r[7],
+            "dep_time": r[8],
+            "to_airport": r[9],
+            "to_terminal": r[10],
+            "arr_time": r[11],
         })
 
     return jsonify(trips)
 
 
-# -------------------- END TRIP (REPLACES DELETE) --------------------
-@APP.route("/api/end-trip/<int:trip_id>", methods=["POST"])
-def end_trip(trip_id):
+# -------------------- DELETE TRIP --------------------
+@APP.route("/api/delete-trip/<int:trip_id>", methods=["DELETE"])
+def delete_trip(trip_id):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-
-    c.execute("""
-        UPDATE trips
-        SET status = 'ENDED'
-        WHERE id = ?
-    """, (trip_id,))
-
+    c.execute("DELETE FROM trips WHERE id=?", (trip_id,))
     conn.commit()
     conn.close()
-    return jsonify({"status": "ended"})
 
-# -------------------- LIVE FLIGHT & STATUS SYNC --------------------
+    return jsonify({"status": "deleted"})
+
+
+# -------------------- LIVE FLIGHT --------------------
 @APP.route("/api/flight/<callsign>")
 def get_flight(callsign):
     flight_obj = fetch_flight_data(callsign)
 
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-
     if not flight_obj:
-        # No live data → mark LANDED if previously ACTIVE
-        c.execute("""
-            UPDATE trips
-            SET status = 'LANDED'
-            WHERE callsign = ? AND status = 'ACTIVE'
-        """, (callsign,))
-        conn.commit()
-        conn.close()
         return jsonify({"flight": None})
 
-    live = flight_obj.get("live")
     flight_status = flight_obj.get("flight_status")
 
-    if live:
-        derived_status = "ACTIVE"
-    elif flight_status == "landed":
-        derived_status = "LANDED"
-    else:
-        derived_status = "UNKNOWN"
-
-    # 🔁 Sync status to DB (skip ENDED)
-    c.execute("""
-        UPDATE trips
-        SET status = ?
-        WHERE callsign = ? AND status != 'ENDED'
-    """, (derived_status, callsign))
-
-    conn.commit()
-    conn.close()
+    # ✅ Derive status if missing
+    if not flight_status and flight_obj.get("live"):
+        flight_status = "active"
 
     return jsonify({
         "flight": {
             "callsign": callsign,
-            "status": derived_status,
-            "live": live
+            "status": flight_status or "unknown",
+            "live": flight_obj.get("live")
         }
     })
+
 
 # -------------------------------------------------
 # START
 # -------------------------------------------------
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     APP.run(host="0.0.0.0", port=port, debug=True)
