@@ -130,7 +130,6 @@ saveBtn.onclick = async () => {
   }
 };
 
-
 /* ============================================================
    LOAD TRIPS (UI CARDS)
    ============================================================ */
@@ -142,9 +141,8 @@ async function loadTrips() {
   cards.innerHTML = "";
 
   trips.forEach(t => {
-     // 🔥 THIS IS THE ONLY REQUIRED FIX
+    // ❌ hide ended trips from cards only
     if (t.status === "ENDED") return;
-    
 
     const card = document.createElement("div");
     card.className = "flight-card";
@@ -159,7 +157,7 @@ async function loadTrips() {
 
         <div class="status-slot" id="status-${t.callsign}">
           ${
-            t.status && t.status !== "UNKNOWN"
+            t.status
               ? `<div class="status-pill ${t.status.toLowerCase()}">
                    ${t.status}
                  </div>`
@@ -323,12 +321,13 @@ async function focusFlight(callsign, leader, id) {
 
     map.setView([lat, lon], 6);
   }
-  
   // ✅ update badge on card ONLY after API call
   const statusSlot = document.getElementById(`status-${callsign}`);
   if (statusSlot) {
+    const statusClass = status.toLowerCase();   // ⭐ THIS IS THE FIX
+
     statusSlot.innerHTML = `
-      <div class="status-pill ${status}">
+      <div class="status-pill ${statusClass}">
         ${status.toUpperCase()}
       </div>
     `;
@@ -382,9 +381,12 @@ async function loadDatabaseTable() {
       <td>${t.coordinator_name || "-"}</td>
       <td>${t.employee_code || "-"}</td>
       <td>${t.leader_name}</td>
-      <td>${t.from_airport}</td>
-      <td>${t.to_airport}</td>
       <td>${t.travel_date}</td>
+      <td>${t.flight_number}</td>
+      <td>${t.from_airport}</td>
+      <td>${t.from_terminal || "-"}</td>
+      <td>${t.to_airport}</td>
+      <td>${t.to_terminal || "-"}</td>
       <td>${t.dep_time}</td>
       <td>${t.arr_time}</td>
       <td>${t.status}</td>
@@ -400,14 +402,14 @@ async function loadDatabaseTable() {
 
 if (exportCsvBtn) {
   exportCsvBtn.addEventListener("click", async () => {
-    const res = await fetch("/api/trips");
+    const res = await fetch("/api/trips-all");
     const trips = await res.json();
 
     let csv =
-      "Trip ID,Coordinator,Emp Code,Leader,From,To,Date,Dep Time,Arr Time,Status\n";
+      "Trip ID,Coordinator,Emp Code,Leader,Date,Flight No,From,From Terminal,To,To Terminal,Dep Time,Arr Time,Status\n";
 
     trips.forEach(t => {
-      csv += `"${t.id}","${t.coordinator_name || ""}","${t.employee_code || ""}","${t.leader_name}","${t.from_airport}","${t.to_airport}","${t.travel_date}","${t.dep_time}","${t.arr_time}","${t.status || ""}"\n`;
+      csv += `"${t.id || ""}","${t.coordinator_name || ""}","${t.employee_code || ""}","${t.leader_name || ""}","${t.travel_date || ""}","${t.flight_number || ""}","${t.from_airport || ""}","${t.from_terminal || ""}","${t.to_airport || ""}","${t.to_terminal || ""}","${t.dep_time || ""}","${t.arr_time || ""}","${t.status || ""}"\n`;
     });
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
