@@ -13,6 +13,8 @@ import os
 import sqlite3
 import requests
 import urllib3
+import psycopg2
+from urllib.parse import urlparse
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 
@@ -23,6 +25,25 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # -------------------------------------------------
 load_dotenv()
 AVIATION_KEY = os.getenv("AVIATIONSTACK_API_KEY", "").strip()
+
+#For production, set DATABASE_URL to a PostgreSQL connection string
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+def get_connection():
+    if DATABASE_URL:
+        # Production → PostgreSQL
+        url = urlparse(DATABASE_URL)
+        return psycopg2.connect(
+            host=url.hostname,
+            database=url.path[1:],
+            user=url.username,
+            password=url.password,
+            port=url.port
+        )
+    else:
+        # Local → SQLite
+        return sqlite3.connect(DB_FILE)
+
 
 # -------------------------------------------------
 # APP
@@ -35,14 +56,15 @@ AVIATIONSTACK_ENDPOINT = "http://api.aviationstack.com/v1/flights"
 # -------------------------------------------------
 # DATABASE
 # -------------------------------------------------
-
+  
 def init_db():
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_connection()
+
     c = conn.cursor()
 
     c.execute("""
     CREATE TABLE IF NOT EXISTS trips (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         coordinator_name TEXT,
         employee_code TEXT,
         leader_name TEXT,
@@ -112,7 +134,8 @@ def add_trip():
     if not re.match(r"^[A-Z0-9]{1,3}[0-9]{1,4}$", callsign):
         return jsonify({"error": "Invalid flight number"}), 400
 
-    conn = sqlite3.connect(DB_FILE)
+    
+    conn = get_connection()
     c = conn.cursor()
 
     c.execute("""
@@ -122,7 +145,8 @@ def add_trip():
             from_airport, from_terminal, dep_time,
             to_airport, to_terminal, arr_time, status
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+
     """, (
         data["coordinator_name"],
         data["employee_code"],
@@ -146,7 +170,8 @@ def add_trip():
 # -------------------- LOAD TRIPS (UI) --------------------
 @APP.route("/api/trips")
 def get_trips():
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_connection()
+
     c = conn.cursor()
 
     # 🔥 Hide ENDED trips from UI
@@ -181,7 +206,8 @@ def get_trips():
 # -------------------- LOAD ALL TRIPS (DATABASE VIEW) --------------------
 @APP.route("/api/trips-all")
 def get_all_trips():
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_connection()
+
     c = conn.cursor()
 
     c.execute("SELECT * FROM trips ORDER BY id DESC")
@@ -213,13 +239,14 @@ def get_all_trips():
 # -------------------- END TRIP (REPLACES DELETE) --------------------
 @APP.route("/api/end-trip/<int:trip_id>", methods=["POST"])
 def end_trip(trip_id):
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_connection()
+
     c = conn.cursor()
 
     c.execute("""
         UPDATE trips
         SET status = 'ENDED'
-        WHERE id = ?
+        WHERE id = %s
     """, (trip_id,))
 
     conn.commit()
@@ -231,7 +258,8 @@ def end_trip(trip_id):
 def get_flight(callsign):
     flight_obj = fetch_flight_data(callsign)
 
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_connection()
+
     c = conn.cursor()
 
     if not flight_obj:
@@ -239,7 +267,7 @@ def get_flight(callsign):
         c.execute("""
             UPDATE trips
             SET status = 'LANDED'
-            WHERE callsign = ? AND status = 'ACTIVE'
+            WHERE callsign = %s AND status = 'ACTIVE'
         """, (callsign,))
         conn.commit()
         conn.close()
@@ -258,8 +286,8 @@ def get_flight(callsign):
     # 🔁 Sync status to DB (skip ENDED)
     c.execute("""
         UPDATE trips
-        SET status = ?
-        WHERE callsign = ? AND status != 'ENDED'
+        SET status = %s
+        WHERE callsign = %s AND status != 'ENDED'
     """, (derived_status, callsign))
 
     conn.commit()
