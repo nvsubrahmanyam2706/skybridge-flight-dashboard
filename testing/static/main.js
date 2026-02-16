@@ -441,12 +441,21 @@ if (exportCsvBtn) {
 
 function toggleMenu(id) {
 
+  const currentMenu = document.getElementById(`menu-${id}`);
+
+  const isOpen = !currentMenu.classList.contains("hidden");
+
+  // close all menus first
   document.querySelectorAll(".menu-dropdown")
     .forEach(m => m.classList.add("hidden"));
 
-  document.getElementById(`menu-${id}`)
-    .classList.toggle("hidden");
+  // if already open → just close
+  if (isOpen) return;
+
+  // else open it
+  currentMenu.classList.remove("hidden");
 }
+
 
 
 async function editTrip(id) {
@@ -473,3 +482,20 @@ async function editTrip(id) {
 
   modal.classList.remove("hidden");
 }
+
+// ============================================================
+// CLOSE MENU ON OUTSIDE CLICK
+// ============================================================
+
+document.addEventListener("click", function (e) {
+
+  const isMenuBtn = e.target.closest(".menu-btn");
+  const isDropdown = e.target.closest(".menu-dropdown");
+
+  // If clicking on menu button or dropdown → do nothing
+  if (isMenuBtn || isDropdown) return;
+
+  // Else close all menus
+  document.querySelectorAll(".menu-dropdown")
+    .forEach(m => m.classList.add("hidden"));
+});
