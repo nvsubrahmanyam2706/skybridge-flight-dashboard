@@ -387,8 +387,6 @@ body {
 /* HOME BUTTON (NEXT TO ADD TRIP) */
 .home-nav-btn {
   right: 160px;   /* shift left of Add Trip */
-  top: 18px;
-  position: absolute;
 }
 
 
