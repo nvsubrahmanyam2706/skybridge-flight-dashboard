@@ -253,6 +253,54 @@ def end_trip(trip_id):
     conn.close()
     return jsonify({"status": "ended"})
 
+# -------------------- UPDATE TRIP (EDIT) --------------------
+@APP.route("/api/update-trip/<int:trip_id>", methods=["POST"])
+def update_trip(trip_id):
+
+    data = request.json
+
+    conn = get_connection()
+    c = conn.cursor()
+
+    # 🚨 DO NOT TOUCH STATUS COLUMN
+    c.execute("""
+        UPDATE trips
+        SET
+            coordinator_name = %s,
+            employee_code = %s,
+            leader_name = %s,
+            travel_date = %s,
+            flight_number = %s,
+            callsign = %s,
+            from_airport = %s,
+            from_terminal = %s,
+            dep_time = %s,
+            to_airport = %s,
+            to_terminal = %s,
+            arr_time = %s
+        WHERE id = %s
+    """, (
+        data["coordinator_name"],
+        data["employee_code"],
+        data["leader_name"],
+        data["travel_date"],
+        data["flight_number"],
+        data["flight_number"].strip().upper(),
+        data["from_airport"],
+        data["from_terminal"],
+        data["dep_time"],
+        data["to_airport"],
+        data["to_terminal"],
+        data["arr_time"],
+        trip_id
+    ))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({"status": "updated"})
+
+
 # -------------------- LIVE FLIGHT & STATUS SYNC --------------------
 @APP.route("/api/flight/<callsign>")
 def get_flight(callsign):

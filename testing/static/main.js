@@ -1,6 +1,7 @@
 // SKYBRIDGE — Executive Flight Intelligence Frontend (Final Cockpit Logic)
 
 let map, markerLayer;
+let editTripId = null;
 let activeMarker = null;
 
 function initMap() {
@@ -86,14 +87,13 @@ function resetModalForm() {
 
 saveBtn.onclick = async () => {
 
-  // ✅ FIX 1: frontend validation (prevents 400 error)
+  // ✅ frontend validation
   const flightNo = flight_number.value.trim().toUpperCase();
 
   if (!/^[A-Z0-9]{1,3}[0-9]{1,4}$/.test(flightNo)) {
     alert("Enter valid flight number (example: 3U3815, AA8, EK202)");
     return;
   }
-
 
   const payload = {
     coordinator_name: coordinator_name.value,
@@ -109,27 +109,38 @@ saveBtn.onclick = async () => {
     arr_time: arr_time.value
   };
 
-  const res = await fetch("/api/add-trip", {
+  // 🔁 SWITCH BETWEEN ADD & EDIT
+  let url = "/api/add-trip";
+
+  if (editTripId) {
+    url = `/api/update-trip/${editTripId}`;
+  }
+
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
 
-  // ✅ FIX 3: handle backend errors properly
   if (!res.ok) {
     const err = await res.json();
-    alert(err.error || "Failed to add trip");
+    alert(err.error || "Failed");
     return;
   }
 
-  const data = await res.json();
-  if (data.status === "ok") {
-    alert("Trip Saved");
-    modal.classList.add("hidden");
-    loadTrips();
-  }
+  alert(editTripId ? "Trip Updated" : "Trip Saved");
+
+  modal.classList.add("hidden");
+
+  // 🧹 Reset edit mode after update
+  editTripId = null;
+
+  loadTrips();
 };
 
+/* ============================================================
+   LOAD TRIPS (UI CARDS)
+   ============================================================ */
 /* ============================================================
    LOAD TRIPS (UI CARDS)
    ============================================================ */
@@ -165,11 +176,18 @@ async function loadTrips() {
           }
         </div>
 
-        <!-- ⛔ stopPropagation prevents card click -->
-        <button class="delete-btn"
-          onclick="event.stopPropagation(); endTrip(${t.id})">
-          End Trip
-        </button>
+        <!-- NEW 3 DOT MENU -->
+        <div class="menu-wrapper" onclick="event.stopPropagation()">
+          <button class="menu-btn"
+            onclick="toggleMenu(${t.id})">
+            ⋮
+          </button>
+
+          <div class="menu-dropdown hidden" id="menu-${t.id}">
+            <div onclick="editTrip(${t.id})">Edit Trip</div>
+            <div onclick="endTrip(${t.id})">End Trip</div>
+          </div>
+        </div>
       </div>
 
       <!-- ROUTE -->
@@ -419,4 +437,39 @@ if (exportCsvBtn) {
     link.download = "trip_database.csv";
     link.click();
   });
+}
+
+function toggleMenu(id) {
+
+  document.querySelectorAll(".menu-dropdown")
+    .forEach(m => m.classList.add("hidden"));
+
+  document.getElementById(`menu-${id}`)
+    .classList.toggle("hidden");
+}
+
+
+async function editTrip(id) {
+
+  const res = await fetch("/api/trips-all");
+  const trips = await res.json();
+
+  const trip = trips.find(t => t.id === id);
+  if (!trip) return;
+
+  editTripId = id;
+
+  coordinator_name.value = trip.coordinator_name;
+  employee_code.value = trip.employee_code;
+  leader_name.value = trip.leader_name;
+  travel_date.value = trip.travel_date;
+  flight_number.value = trip.flight_number;
+  from_airport.value = trip.from_airport;
+  from_terminal.value = trip.from_terminal;
+  dep_time.value = trip.dep_time;
+  to_airport.value = trip.to_airport;
+  to_terminal.value = trip.to_terminal;
+  arr_time.value = trip.arr_time;
+
+  modal.classList.remove("hidden");
 }
