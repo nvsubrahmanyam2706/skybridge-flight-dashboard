@@ -384,6 +384,14 @@ body {
   box-shadow: 0 0 30px rgba(0,250,194,0.75);
 }
 
+/* HOME BUTTON (NEXT TO ADD TRIP) */
+.home-nav-btn {
+  right: 160px;   /* shift left of Add Trip */
+  top: 18px;
+  position: absolute;
+}
+
+
 /* Calendar & time input styling */
 .modal-box input[type="date"],
 .modal-box input[type="time"] {
