@@ -50,11 +50,31 @@ body {
 
 .logo {
   position: absolute;
-  left: 25px;
+  left: 110px;
   width: 200px;
   filter: none;
 }
 
+/* ================= HOME BUTTON ================= */
+
+.home-btn {
+  position: absolute;
+  left: 20px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(0,250,194,0.4);
+  text-decoration: none;
+  font-weight: 700;
+  color: #7efce8;
+  background: rgba(0,250,194,0.08);
+  box-shadow: 0 0 12px rgba(0,250,194,0.25);
+  transition: 0.2s ease;
+}
+
+.home-btn:hover {
+  background: rgba(0,250,194,0.18);
+  box-shadow: 0 0 18px rgba(0,250,194,0.5);
+}
 
 
 .title {
