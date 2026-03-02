@@ -225,18 +225,15 @@ async function loadTrips() {
    ============================================================ */
 
 function updateSummaryCounters() {
-
   const cards = document.querySelectorAll(".flight-card");
 
   let total = cards.length;
   let active = 0;
-  let live = 0;
   let scheduled = 0;
   let landed = 0;
   let unknown = 0;
 
   cards.forEach(card => {
-
     const pill = card.querySelector(".status-pill");
 
     if (!pill) {
@@ -247,7 +244,6 @@ function updateSummaryCounters() {
     const status = pill.textContent.trim().toLowerCase();
 
     if (status === "active") active++;
-    else if (status === "live") live++;
     else if (status === "scheduled") scheduled++;
     else if (status === "landed") landed++;
     else unknown++;
@@ -255,7 +251,6 @@ function updateSummaryCounters() {
 
   document.getElementById("sum-total").textContent = total;
   document.getElementById("sum-active").textContent = active;
-  document.getElementById("sum-live").textContent = live;
   document.getElementById("sum-scheduled").textContent = scheduled;
   document.getElementById("sum-landed").textContent = landed;
   document.getElementById("sum-unknown").textContent = unknown;
@@ -299,13 +294,11 @@ async function endTrip(id) {
   loadTrips();
 }
 
-
 /* ============================================================
-   FOCUS FLIGHT  (ACTIVE ≠ LIVE)
+   FOCUS FLIGHT
    ============================================================ */
 
 async function focusFlight(callsign, leader, id) {
-
   const res = await fetch(`/api/flight/${callsign}`);
   const data = await res.json();
 
@@ -318,13 +311,22 @@ async function focusFlight(callsign, leader, id) {
     return;
   }
 
+  const live = data.flight.live;
+
+  // ✅ STATUS DERIVATION LOGIC (IMPORTANT FIX)
   let status = data.flight.status || "unknown";
 
-  // 🚀 SHOW MAP ONLY IF LIVE TELEMETRY AVAILABLE
-  if (status === "live" && data.flight.live) {
+  // If live coordinates exist → flight is ACTIVE
+  if (live && (!status || status === "unknown")) {
+    status = "active";
+  }
 
-    const lat = data.flight.live.latitude;
-    const lon = data.flight.live.longitude;
+  // If still no live → stop here (but status may be scheduled/unknown)
+  if (!live) {
+    alert("No live position for this flight yet.");
+  } else {
+    const lat = live.latitude;
+    const lon = live.longitude;
 
     const marker = L.marker([lat, lon], { icon: planeIcon() }).addTo(markerLayer);
     activeMarker = marker;
@@ -332,17 +334,15 @@ async function focusFlight(callsign, leader, id) {
     marker.bindPopup(`
       <b>${callsign}</b><br/>
       Leader: ${leader}<br/>
-      Status: LIVE
+      Status: ${status.toUpperCase()}
     `).openPopup();
 
     map.setView([lat, lon], 6);
   }
-
-  // ✅ UPDATE BADGE BASED ON BACKEND ONLY (NO FRONTEND OVERRIDE)
+  // ✅ update badge on card ONLY after API call
   const statusSlot = document.getElementById(`status-${callsign}`);
-
   if (statusSlot) {
-    const statusClass = status.toLowerCase();
+    const statusClass = status.toLowerCase();   // ⭐ THIS IS THE FIX
 
     statusSlot.innerHTML = `
       <div class="status-pill ${statusClass}">
@@ -350,9 +350,10 @@ async function focusFlight(callsign, leader, id) {
       </div>
     `;
   }
-
   updateSummaryCounters();
+
 }
+
 
 /* ============================================================
    INIT
