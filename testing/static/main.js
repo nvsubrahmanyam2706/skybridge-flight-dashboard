@@ -257,6 +257,25 @@ function updateSummaryCounters() {
 }
 
 /* ============================================================
+   DELETE TRIP
+   ============================================================ */
+
+async function deleteTrip(id) {
+  if (!confirm("Delete this trip?")) return;
+
+  await fetch(`/api/delete-trip/${id}`, { method: "DELETE" });
+
+  // Remove marker if exists
+  if (activeMarker) {
+    markerLayer.clearLayers();
+    activeMarker = null;
+  }
+
+  loadTrips();
+  setTimeout(updateSummaryCounters, 200);
+}
+
+/* ============================================================
    END TRIP (GLOBAL – REQUIRED)
 ============================================================ */
 
