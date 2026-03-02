@@ -235,7 +235,6 @@ def get_all_trips():
 
     return jsonify(trips)
 
-
 # -------------------- END TRIP (REPLACES DELETE) --------------------
 @APP.route("/api/end-trip/<int:trip_id>", methods=["POST"])
 def end_trip(trip_id):
