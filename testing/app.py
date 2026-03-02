@@ -304,45 +304,42 @@ def update_trip(trip_id):
 # -------------------- LIVE FLIGHT & STATUS SYNC --------------------
 @APP.route("/api/flight/<callsign>")
 def get_flight(callsign):
+
     flight_obj = fetch_flight_data(callsign)
 
     conn = get_connection()
-
     c = conn.cursor()
 
     if not flight_obj:
-        # No live data → mark LANDED if previously ACTIVE
-        c.execute("""
-            UPDATE trips
-            SET status = 'LANDED'
-            WHERE callsign = %s AND status = 'ACTIVE'
-        """, (callsign,))
-        conn.commit()
-        conn.close()
         return jsonify({"flight": None})
 
     live = flight_obj.get("live")
-    flight_status = flight_obj.get("flight_status")
+    flight_status = (flight_obj.get("flight_status") or "").lower()
 
-    if flight_status == "active":
-        if live and live.get("latitude") and live.get("longitude"):
-            derived_status = "LIVE"
-        else:
-            derived_status = "ACTIVE"
+    # -------------------------------
+    # ✈️ STATUS DERIVATION LOGIC
+    # -------------------------------
 
-    elif flight_status == "landed":
+    # 🛬 LANDED — highest priority
+    if flight_status == "landed":
         derived_status = "LANDED"
 
+    # 📍 LIVE — airborne + telemetry exists
+    elif flight_status == "active" and live:
+        derived_status = "LIVE"
+
+    # 🛫 ACTIVE — airborne but no telemetry
+    elif flight_status == "active":
+        derived_status = "ACTIVE"
+
+    # 🕒 SCHEDULED
     elif flight_status == "scheduled":
         derived_status = "SCHEDULED"
 
     else:
         derived_status = "UNKNOWN"
 
-
-    
-
-    # 🔁 Sync status to DB (skip ENDED)
+    # 🔁 Sync DB (skip ENDED)
     c.execute("""
         UPDATE trips
         SET status = %s
@@ -359,7 +356,6 @@ def get_flight(callsign):
             "live": live
         }
     })
-
 # -------------------------------------------------
 # START
 # -------------------------------------------------
