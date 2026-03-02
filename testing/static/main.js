@@ -229,6 +229,7 @@ function updateSummaryCounters() {
 
   let total = cards.length;
   let active = 0;
+  let live = 0;
   let scheduled = 0;
   let landed = 0;
   let unknown = 0;
@@ -243,7 +244,7 @@ function updateSummaryCounters() {
 
     const status = pill.textContent.trim().toLowerCase();
 
-    if (status === "active") active++;
+    if (status === "live" || status === "active") active++;
     else if (status === "scheduled") scheduled++;
     else if (status === "landed") landed++;
     else unknown++;
@@ -313,17 +314,11 @@ async function focusFlight(callsign, leader, id) {
 
   const live = data.flight.live;
 
-  // ✅ STATUS DERIVATION LOGIC (IMPORTANT FIX)
   let status = data.flight.status || "unknown";
 
-  // If live coordinates exist → flight is ACTIVE
-  if (live && (!status || status === "unknown")) {
-    status = "active";
-  }
-
-  // If still no live → stop here (but status may be scheduled/unknown)
-  if (!live) {
-    alert("No live position for this flight yet.");
+  // Show map ONLY when LIVE
+  if (status !== "live") {
+    alert("Flight is airborne but live tracking is unavailable.");
   } else {
     const lat = live.latitude;
     const lon = live.longitude;
@@ -334,11 +329,13 @@ async function focusFlight(callsign, leader, id) {
     marker.bindPopup(`
       <b>${callsign}</b><br/>
       Leader: ${leader}<br/>
-      Status: ${status.toUpperCase()}
+      Status: LIVE
     `).openPopup();
 
     map.setView([lat, lon], 6);
   }
+
+
   // ✅ update badge on card ONLY after API call
   const statusSlot = document.getElementById(`status-${callsign}`);
   if (statusSlot) {

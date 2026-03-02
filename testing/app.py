@@ -324,12 +324,23 @@ def get_flight(callsign):
     live = flight_obj.get("live")
     flight_status = flight_obj.get("flight_status")
 
-    if live:
-        derived_status = "ACTIVE"
+    if flight_status == "active":
+        if live and live.get("latitude") and live.get("longitude"):
+            derived_status = "LIVE"
+        else:
+            derived_status = "ACTIVE"
+
     elif flight_status == "landed":
         derived_status = "LANDED"
+
+    elif flight_status == "scheduled":
+        derived_status = "SCHEDULED"
+
     else:
         derived_status = "UNKNOWN"
+
+
+    
 
     # 🔁 Sync status to DB (skip ENDED)
     c.execute("""
