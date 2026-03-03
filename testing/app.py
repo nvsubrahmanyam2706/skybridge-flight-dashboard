@@ -358,6 +358,7 @@ def get_flight(callsign):
     })
 
 # -------------------- TEMP RESET STATUS --------------------
+# -------------------- TEMP RESET STATUS --------------------
 @APP.route("/api/reset-status")
 def reset_status():
     conn = get_connection()
