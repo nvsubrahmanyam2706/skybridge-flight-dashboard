@@ -219,12 +219,21 @@ body {
 }
 
 /* ============================================================
-   LANDED — BLUE
+   LIVE — BLUE
    ============================================================ */
-.status-pill.landed {
+.status-pill.live {
   background: linear-gradient(135deg, #6f7cff, #4b5cff);
   color: #ffffff;
-  box-shadow: 0 0 14px rgba(110,125,255,0.6);
+  box-shadow: 0 0 16px rgba(110,125,255,0.75);
+}
+
+/* ============================================================
+   LANDED — PURPLE
+   ============================================================ */
+.status-pill.landed {
+  background: linear-gradient(135deg, #a855f7, #7c3aed);
+  color: #ffffff;
+  box-shadow: 0 0 16px rgba(168,85,247,0.8);
 }
 
 /* ============================================================
