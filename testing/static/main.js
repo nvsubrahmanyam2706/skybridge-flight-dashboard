@@ -225,15 +225,18 @@ async function loadTrips() {
    ============================================================ */
 
 function updateSummaryCounters() {
+
   const cards = document.querySelectorAll(".flight-card");
 
   let total = cards.length;
   let active = 0;
+  let live = 0;
   let scheduled = 0;
   let landed = 0;
   let unknown = 0;
 
   cards.forEach(card => {
+
     const pill = card.querySelector(".status-pill");
 
     if (!pill) {
@@ -244,6 +247,7 @@ function updateSummaryCounters() {
     const status = pill.textContent.trim().toLowerCase();
 
     if (status === "active") active++;
+    else if (status === "live") live++;
     else if (status === "scheduled") scheduled++;
     else if (status === "landed") landed++;
     else unknown++;
@@ -251,6 +255,7 @@ function updateSummaryCounters() {
 
   document.getElementById("sum-total").textContent = total;
   document.getElementById("sum-active").textContent = active;
+  document.getElementById("sum-live").textContent = live;
   document.getElementById("sum-scheduled").textContent = scheduled;
   document.getElementById("sum-landed").textContent = landed;
   document.getElementById("sum-unknown").textContent = unknown;
@@ -259,21 +264,6 @@ function updateSummaryCounters() {
 /* ============================================================
    DELETE TRIP
    ============================================================ */
-
-async function deleteTrip(id) {
-  if (!confirm("Delete this trip?")) return;
-
-  await fetch(`/api/delete-trip/${id}`, { method: "DELETE" });
-
-  // Remove marker if exists
-  if (activeMarker) {
-    markerLayer.clearLayers();
-    activeMarker = null;
-  }
-
-  loadTrips();
-  setTimeout(updateSummaryCounters, 200);
-}
 
 /* ============================================================
    END TRIP (GLOBAL – REQUIRED)
@@ -294,15 +284,17 @@ async function endTrip(id) {
   loadTrips();
 }
 
+
 /* ============================================================
-   FOCUS FLIGHT
+   FOCUS FLIGHT  (ENTERPRISE STATUS LOGIC)
    ============================================================ */
 
 async function focusFlight(callsign, leader, id) {
+
   const res = await fetch(`/api/flight/${callsign}`);
   const data = await res.json();
 
-  // Remove old marker always
+  // Always clear previous marker
   markerLayer.clearLayers();
   activeMarker = null;
 
@@ -311,22 +303,17 @@ async function focusFlight(callsign, leader, id) {
     return;
   }
 
-  const live = data.flight.live;
+  let status = (data.flight.status || "unknown").toLowerCase();
 
-  // ✅ STATUS DERIVATION LOGIC (IMPORTANT FIX)
-  let status = data.flight.status || "unknown";
+  // ==============================
+  // STATUS-BASED BEHAVIOUR
+  // ==============================
 
-  // If live coordinates exist → flight is ACTIVE
-  if (live && (!status || status === "unknown")) {
-    status = "active";
-  }
+  if (status === "live" && data.flight.live) {
 
-  // If still no live → stop here (but status may be scheduled/unknown)
-  if (!live) {
-    alert("No live position for this flight yet.");
-  } else {
-    const lat = live.latitude;
-    const lon = live.longitude;
+    // ✅ SHOW MAP
+    const lat = data.flight.live.latitude;
+    const lon = data.flight.live.longitude;
 
     const marker = L.marker([lat, lon], { icon: planeIcon() }).addTo(markerLayer);
     activeMarker = marker;
@@ -334,26 +321,44 @@ async function focusFlight(callsign, leader, id) {
     marker.bindPopup(`
       <b>${callsign}</b><br/>
       Leader: ${leader}<br/>
-      Status: ${status.toUpperCase()}
+      Status: LIVE
     `).openPopup();
 
     map.setView([lat, lon], 6);
-  }
-  // ✅ update badge on card ONLY after API call
-  const statusSlot = document.getElementById(`status-${callsign}`);
-  if (statusSlot) {
-    const statusClass = status.toLowerCase();   // ⭐ THIS IS THE FIX
 
+  } else if (status === "active") {
+
+    alert("Flight is airborne but live tracking is not available yet.");
+
+  } else if (status === "scheduled") {
+
+    alert("Flight is not airborne yet. It is currently scheduled.");
+
+  } else if (status === "landed") {
+
+    alert("Flight has landed.");
+
+  } else {
+
+    alert("Flight status unavailable.");
+  }
+
+  // ==============================
+  // UPDATE STATUS BADGE
+  // ==============================
+
+  const statusSlot = document.getElementById(`status-${callsign}`);
+
+  if (statusSlot) {
     statusSlot.innerHTML = `
-      <div class="status-pill ${statusClass}">
+      <div class="status-pill ${status}">
         ${status.toUpperCase()}
       </div>
     `;
   }
+
   updateSummaryCounters();
-
 }
-
 
 /* ============================================================
    INIT
