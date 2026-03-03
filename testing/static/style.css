@@ -237,14 +237,13 @@ body {
 }
 
 /* ============================================================
-   UNKNOWN — PINK / RED
+   UNKNOWN — RED (Attention Needed)
    ============================================================ */
 .status-pill.unknown {
-  background: linear-gradient(135deg, #ffb703, #ff9f1c);
-  color: #1a1200;
-  box-shadow: 0 0 14px rgba(255,183,3,0.6);
+  background: linear-gradient(135deg, #ff4d4d, #ff0000);
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(255, 0, 0, 0.6);
 }
-
 
 /* ============================================================
    SUMMARY BAR

@@ -223,43 +223,53 @@ async function loadTrips() {
 /* ============================================================
    UPDATE SUMMARY COUNTERS
    ============================================================ */
+  function updateSummaryCounters() {
 
-function updateSummaryCounters() {
+    const cards = document.querySelectorAll(".flight-card");
 
-  const cards = document.querySelectorAll(".flight-card");
+    let total = cards.length;
+    let active = 0;
+    let live = 0;
+    let scheduled = 0;
+    let landed = 0;
+    let unknown = 0;
 
-  let total = cards.length;
-  let active = 0;
-  let live = 0;
-  let scheduled = 0;
-  let landed = 0;
-  let unknown = 0;
+    cards.forEach(card => {
 
-  cards.forEach(card => {
+      const pill = card.querySelector(".status-pill");
+      if (!pill) {
+        unknown++;
+        return;
+      }
 
-    const pill = card.querySelector(".status-pill");
+      const status = pill.classList[1];  // safer than textContent
 
-    if (!pill) {
-      unknown++;
-      return;
-    }
+      switch(status) {
+        case "active":
+          active++;
+          break;
+        case "live":
+          live++;
+          break;
+        case "scheduled":
+          scheduled++;
+          break;
+        case "landed":
+          landed++;
+          break;
+        default:
+          unknown++;
+      }
 
-    const status = pill.textContent.trim().toLowerCase();
+    });
 
-    if (status === "active") active++;
-    else if (status === "live") live++;
-    else if (status === "scheduled") scheduled++;
-    else if (status === "landed") landed++;
-    else unknown++;
-  });
-
-  document.getElementById("sum-total").textContent = total;
-  document.getElementById("sum-active").textContent = active;
-  document.getElementById("sum-live").textContent = live;
-  document.getElementById("sum-scheduled").textContent = scheduled;
-  document.getElementById("sum-landed").textContent = landed;
-  document.getElementById("sum-unknown").textContent = unknown;
-}
+    document.getElementById("sum-total").textContent = total;
+    document.getElementById("sum-active").textContent = active;
+    document.getElementById("sum-live").textContent = live;
+    document.getElementById("sum-scheduled").textContent = scheduled;
+    document.getElementById("sum-landed").textContent = landed;
+    document.getElementById("sum-unknown").textContent = unknown;
+  }
 
 /* ============================================================
    DELETE TRIP
@@ -350,9 +360,12 @@ async function focusFlight(callsign, leader, id) {
   const statusSlot = document.getElementById(`status-${callsign}`);
 
   if (statusSlot) {
+
+    const normalizedStatus = status.toLowerCase();
+
     statusSlot.innerHTML = `
-      <div class="status-pill ${status}">
-        ${status.toUpperCase()}
+      <div class="status-pill ${normalizedStatus}">
+        ${normalizedStatus.toUpperCase()}
       </div>
     `;
   }
