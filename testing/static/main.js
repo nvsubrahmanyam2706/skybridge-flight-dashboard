@@ -309,11 +309,22 @@ async function focusFlight(callsign, leader, id) {
   activeMarker = null;
 
   if (!data.flight) {
+
     alert("No flight data available.");
+
+    const statusSlot = document.getElementById(`status-${callsign}`);
+    if (statusSlot) {
+      statusSlot.innerHTML = `
+        <div class="status-pill unknown">
+          UNKNOWN
+        </div>
+      `;
+    }
+
+    updateSummaryCounters();
     return;
   }
-
-  let status = (data.flight.status || "unknown").toLowerCase();
+    let status = (data.flight.status || "unknown").toLowerCase();
 
   // ==============================
   // STATUS-BASED BEHAVIOUR

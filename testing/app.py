@@ -90,13 +90,14 @@ init_db()
 # HELPERS
 # -------------------------------------------------
 
-def fetch_flight_data(callsign):
+def fetch_flight_data(callsign, travel_date):
     if not AVIATION_KEY:
         return None
 
     params = {
         "access_key": AVIATION_KEY,
         "flight_iata": callsign,
+        "flight_date": travel_date,
         "limit": 1
     }
 
@@ -305,10 +306,26 @@ def update_trip(trip_id):
 @APP.route("/api/flight/<callsign>")
 def get_flight(callsign):
 
-    flight_obj = fetch_flight_data(callsign)
-
     conn = get_connection()
     c = conn.cursor()
+
+    # get travel date for this trip
+    c.execute("""
+        SELECT travel_date
+        FROM trips
+        WHERE callsign = %s
+        AND status != 'ENDED'
+        ORDER BY id DESC
+        LIMIT 1
+    """, (callsign,))
+
+    row = c.fetchone()
+    travel_date = row[0] if row else None
+
+    print("DEBUG → Flight:", callsign, "Date:", travel_date)
+
+    # fetch flight using flight number + date
+    flight_obj = fetch_flight_data(callsign, travel_date)
 
     if not flight_obj:
         return jsonify({"flight": None})
