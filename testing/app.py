@@ -98,7 +98,7 @@ def fetch_flight_data(callsign, travel_date):
         "access_key": AVIATION_KEY,
         "flight_iata": callsign,
         "flight_date": travel_date,
-        "limit": 1
+        "limit": 10
     }
 
     try:
@@ -110,8 +110,42 @@ def fetch_flight_data(callsign, travel_date):
         )
         r.raise_for_status()
         data = r.json().get("data", [])
-        if data:
-            return data[0]
+
+        if not data:
+            return None
+
+        priority = {
+            "live": 5,
+            "active": 4,
+            "landed": 3,
+            "scheduled": 2,
+            "unknown": 1
+        }
+
+        best = None
+        best_score = 0
+
+        for f in data:
+
+                # ensure record belongs to exact travel date
+            if f.get("flight_date") != travel_date:
+                continue
+
+
+            status = (f.get("flight_status") or "unknown").lower()
+
+            # if live telemetry exists → treat as LIVE
+            if f.get("live"):
+                status = "live"
+
+            score = priority.get(status, 0)
+
+            if score > best_score:
+                best = f
+                best_score = score
+
+        return best
+
     except Exception as e:
         print("AviationStack Error:", e)
 
@@ -329,39 +363,90 @@ def get_flight(callsign):
 
     if not flight_obj:
         return jsonify({"flight": None})
-
+    
     live = flight_obj.get("live")
-    flight_status = (flight_obj.get("flight_status") or "").lower()
+    status = (flight_obj.get("flight_status") or "unknown").lower()
+
+    # -------------------------------
+    # ✈️ STATUS DERIVATION LOGIC
+    # -------------------------------
+
+    if live:
+        derived_status = "LIVE"
+
+    elif status == "active":
+        derived_status = "ACTIVE"
+
+    elif status == "landed":
+        derived_status = "LANDED"
+
+    elif status == "scheduled":
+        derived_status = "SCHEDULED"
+
+    else:
+        derived_status = "UNKNOWN"
+
+#    live = flight_obj.get("live")
+#    flight_status = (flight_obj.get("flight_status") or "").lower()
+
 
     # -------------------------------
     # ✈️ STATUS DERIVATION LOGIC
     # -------------------------------
 
     # 🛬 LANDED — highest priority
-    if flight_status == "landed":
-        derived_status = "LANDED"
+#    if flight_status == "landed":
+#        derived_status = "LANDED"
 
     # 📍 LIVE — airborne + telemetry exists
-    elif flight_status == "active" and live:
-        derived_status = "LIVE"
+#    elif flight_status == "active" and live:
+#        derived_status = "LIVE"
 
     # 🛫 ACTIVE — airborne but no telemetry
-    elif flight_status == "active":
-        derived_status = "ACTIVE"
+#    elif flight_status == "active":
+#        derived_status = "ACTIVE"
 
     # 🕒 SCHEDULED
-    elif flight_status == "scheduled":
-        derived_status = "SCHEDULED"
+#    elif flight_status == "scheduled":
+#        derived_status = "SCHEDULED"
 
-    else:
-        derived_status = "UNKNOWN"
+#    else:
+#        derived_status = "UNKNOWN"
 
-    # 🔁 Sync DB (skip ENDED)
+   
+
+    # -------------------------------
+    # STATUS STABILIZATION
+    # -------------------------------
+
+    priority = {
+        "LIVE": 5,
+        "ACTIVE": 4,
+        "LANDED": 3,
+        "SCHEDULED": 2,
+        "UNKNOWN": 1
+    }
+
+    # get current DB status
     c.execute("""
+    SELECT status
+    FROM trips
+    WHERE callsign = %s AND status != 'ENDED'
+    ORDER BY id DESC
+    LIMIT 1
+    """, (callsign,))
+
+    row = c.fetchone()
+    current_status = row[0] if row else "UNKNOWN"
+
+    # update only if new status is higher priority
+    if priority.get(derived_status,0) >= priority.get(current_status,0):
+
+        c.execute("""
         UPDATE trips
         SET status = %s
         WHERE callsign = %s AND status != 'ENDED'
-    """, (derived_status, callsign))
+        """, (derived_status, callsign))
 
     conn.commit()
     conn.close()
@@ -373,7 +458,6 @@ def get_flight(callsign):
             "live": live
         }
     })
-
 
 # -------------------------------------------------
 # START
