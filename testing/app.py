@@ -420,11 +420,11 @@ def get_flight(callsign):
     # -------------------------------
 
     priority = {
-        "LIVE": 5,
-        "ACTIVE": 4,
-        "LANDED": 3,
-        "SCHEDULED": 2,
-        "UNKNOWN": 1
+        "UNKNOWN": 0,
+        "SCHEDULED": 1,
+        "ACTIVE": 2,
+        "LIVE": 3,
+        "LANDED": 4
     }
 
     # get current DB status
