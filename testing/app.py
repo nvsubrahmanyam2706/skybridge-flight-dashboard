@@ -426,7 +426,6 @@ def get_flight(callsign):
         "LIVE": 3,
         "LANDED": 4
     }
-
     # get current DB status
     c.execute("""
     SELECT status
