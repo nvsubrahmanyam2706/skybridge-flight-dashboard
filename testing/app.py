@@ -560,28 +560,6 @@ def get_flight(callsign):
         }
     })
 
-# -------------------- TEMP ALERT TABLE CREATE (ONE-TIME USE) --------------------
-@APP.route("/admin/create-alerts-table")
-def create_alerts_table():
-
-    conn = get_connection()
-    c = conn.cursor()
-
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS alerts (
-            id SERIAL PRIMARY KEY,
-            flight_no TEXT,
-            alert_type TEXT,
-            message TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-
-    conn.commit()
-    conn.close()
-
-    return "Alerts table created successfully."
-
 # -------------------------------------------------
 # START
 # -------------------------------------------------
