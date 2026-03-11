@@ -111,6 +111,9 @@ def fetch_flight_data(callsign, travel_date):
         r.raise_for_status()
         data = r.json().get("data", [])
 
+        print("API RESPONSE:", data)
+ #       print("DEBUG → AviationStack records:", len(data)) 
+
         if not data:
             return None
 
@@ -127,11 +130,6 @@ def fetch_flight_data(callsign, travel_date):
 
         for f in data:
 
-                # ensure record belongs to exact travel date
-            if f.get("flight_date") != travel_date:
-                continue
-
-
             status = (f.get("flight_status") or "unknown").lower()
 
             # if live telemetry exists → treat as LIVE
@@ -139,6 +137,10 @@ def fetch_flight_data(callsign, travel_date):
                 status = "live"
 
             score = priority.get(status, 0)
+
+            # Prefer matching date but don't discard others
+            if f.get("flight_date") == travel_date:
+                score += 10
 
             if score > best_score:
                 best = f
@@ -371,14 +373,14 @@ def get_flight(callsign):
     # ✈️ STATUS DERIVATION LOGIC
     # -------------------------------
 
-    if live:
+    if status == "landed":
+        derived_status = "LANDED"
+
+    elif live:
         derived_status = "LIVE"
 
     elif status == "active":
         derived_status = "ACTIVE"
-
-    elif status == "landed":
-        derived_status = "LANDED"
 
     elif status == "scheduled":
         derived_status = "SCHEDULED"
@@ -447,16 +449,138 @@ def get_flight(callsign):
         WHERE callsign = %s AND status != 'ENDED'
         """, (derived_status, callsign))
 
+    # ---------------------------------------
+    # Extract scheduled times from API
+    # ---------------------------------------
+
+    dep_time = None
+    arr_time = None
+    dep_terminal = None
+    arr_terminal = None
+
+    try:
+
+        departure = flight_obj.get("departure", {})
+        arrival = flight_obj.get("arrival", {})
+
+        dep = (
+            flight_obj.get("departure", {}).get("actual") or
+            flight_obj.get("departure", {}).get("estimated") or
+            flight_obj.get("departure", {}).get("scheduled")
+        )
+
+        arr = (
+            flight_obj.get("arrival", {}).get("actual") or
+            flight_obj.get("arrival", {}).get("estimated") or
+            flight_obj.get("arrival", {}).get("scheduled")
+        )
+
+        if dep:
+            dep_time = dep[11:16]
+
+        if arr:
+            arr_time = arr[11:16]
+
+        # TERMINALS
+        dep_terminal = departure.get("terminal")
+        arr_terminal = arrival.get("terminal")
+
+    except:
+        pass
+
+    # ---------------------------------------
+    # UPDATE DB TIMES IF DIFFERENT
+    # ---------------------------------------
+
+    if dep_time or arr_time:
+
+        c.execute("""
+            SELECT dep_time, arr_time, from_terminal, to_terminal, id
+            FROM trips
+            WHERE callsign = %s
+            AND status != 'ENDED'
+            ORDER BY id DESC
+            LIMIT 1
+        """, (callsign,))
+
+        row = c.fetchone()
+
+        if row:
+            db_dep, db_arr, db_dep_term, db_arr_term, trip_id = row
+
+            new_dep = dep_time if dep_time else db_dep
+            new_arr = arr_time if arr_time else db_arr
+
+            new_dep_term = dep_terminal if dep_terminal else db_dep_term
+            new_arr_term = arr_terminal if arr_terminal else db_arr_term
+
+            if (
+                new_dep != db_dep or
+                new_arr != db_arr or
+                new_dep_term != db_dep_term or
+                new_arr_term != db_arr_term
+            ):
+
+                c.execute("""
+                    UPDATE trips
+                    SET dep_time = %s,
+                        arr_time = %s,
+                        from_terminal = %s,
+                        to_terminal = %s  
+                    WHERE id = %s
+            """, (new_dep, new_arr, new_dep_term, new_arr_term,trip_id))
+    # ---------------------------------------
+    # GET FINAL STABILIZED STATUS FROM DB
+    # ---------------------------------------
+
+    c.execute("""
+    SELECT status
+    FROM trips
+    WHERE callsign = %s
+    AND status != 'ENDED'
+    ORDER BY id DESC
+    LIMIT 1
+    """, (callsign,))
+
+    row = c.fetchone()
+    final_status = row[0] if row else derived_status            
+
     conn.commit()
     conn.close()
 
     return jsonify({
         "flight": {
             "callsign": callsign,
-            "status": derived_status,
-            "live": live
+            "status": final_status,
+            "live": live,
+            "dep_time": dep_time,
+            "arr_time": arr_time,
+            "dep_terminal": dep_terminal,
+            "arr_terminal": arr_terminal
         }
     })
+
+# -------------------- TEMP ALERT TABLE CREATE (ONE-TIME USE) --------------------
+@APP.route("/admin/create-alerts-table")
+def create_alerts_table():
+
+    conn = get_connection()
+    c = conn.cursor()
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS alerts (
+            id SERIAL PRIMARY KEY,
+            flight_no TEXT,
+            alert_type TEXT,
+            message TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.commit()
+    conn.close()
+
+    return "Alerts table created successfully."
 
 # -------------------------------------------------
 # START

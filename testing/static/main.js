@@ -299,6 +299,10 @@ async function endTrip(id) {
    FOCUS FLIGHT  (ENTERPRISE STATUS LOGIC)
    ============================================================ */
 
+/* ============================================================
+   FOCUS FLIGHT  (ENTERPRISE STATUS LOGIC)
+   ============================================================ */
+
 async function focusFlight(callsign, leader, id) {
 
   const res = await fetch(`/api/flight/${callsign}`);
@@ -324,7 +328,60 @@ async function focusFlight(callsign, leader, id) {
     updateSummaryCounters();
     return;
   }
-    let status = (data.flight.status || "unknown").toLowerCase();
+
+  // =====================================
+  // UPDATE CARD TIME IF API TIME CHANGED
+  // =====================================
+
+  const card = document.getElementById(`card-${id}`);
+
+  if (card) {
+
+    const timeValue = card.querySelector(".time-value");
+
+    if (data.flight.dep_time && data.flight.arr_time) {
+
+      const apiTime = `${data.flight.dep_time} → ${data.flight.arr_time}`;
+
+      if (timeValue && timeValue.textContent.trim() !== apiTime) {
+        timeValue.textContent = apiTime;
+      }
+
+    }
+
+    // =====================================
+    // UPDATE TERMINAL IF API TERMINAL CHANGED
+    // =====================================
+
+     const terminalRow = card.querySelector(".terminal-row span");
+
+    if (terminalRow) {
+
+      const currentTerminal = terminalRow.textContent.trim().split("→");
+
+      let depTerm = currentTerminal[0].trim();
+      let arrTerm = currentTerminal[1].trim();
+
+      if (data.flight.dep_terminal) {
+        depTerm = data.flight.dep_terminal;
+      }
+
+      if (data.flight.arr_terminal) {
+        arrTerm = data.flight.arr_terminal;
+      }
+
+      const apiTerminal = `${depTerm} → ${arrTerm}`;
+
+      if (terminalRow.textContent.trim() !== apiTerminal) {
+        terminalRow.textContent = apiTerminal;
+      }
+
+    }
+
+  }
+
+
+  let status = (data.flight.status || "unknown").toLowerCase();
 
   // ==============================
   // STATUS-BASED BEHAVIOUR
