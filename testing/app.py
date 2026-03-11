@@ -153,6 +153,32 @@ def fetch_flight_data(callsign, travel_date):
 
     return None
 
+def create_alert(flight_no, alert_type, message):
+
+    conn = get_connection()
+    c = conn.cursor()
+
+    # prevent duplicate alerts in last 10 minutes
+    c.execute("""
+        SELECT 1 FROM alerts
+        WHERE flight_no = %s
+        AND alert_type = %s
+        AND message = %s
+        AND created_at > NOW() - INTERVAL '10 minutes'
+        LIMIT 1
+    """, (flight_no, alert_type, message))
+
+    exists = c.fetchone()
+
+    if not exists:
+        c.execute("""
+            INSERT INTO alerts (flight_no, alert_type, message)
+            VALUES (%s, %s, %s)
+        """, (flight_no, alert_type, message))
+
+    conn.commit()
+    conn.close()
+
 # -------------------------------------------------
 # ROUTES
 # -------------------------------------------------
@@ -485,14 +511,26 @@ def get_flight(callsign):
         dep_terminal = departure.get("terminal")
         arr_terminal = arrival.get("terminal")
 
-    except:
-        pass
+        # ---------------------------------------
+        # DELAY DETECTION
+        # ---------------------------------------
+        delay = departure.get("delay")
+
+        if delay and delay >= 15:
+            create_alert(
+                callsign,
+                "delay",
+                f"Flight delay detected ({delay} minutes)"
+            )
+
+    except Exception as e:
+        print("Flight parsing error:", e)
 
     # ---------------------------------------
     # UPDATE DB TIMES IF DIFFERENT
     # ---------------------------------------
 
-    if dep_time or arr_time:
+    if dep_time or arr_time or dep_terminal or arr_terminal:
 
         c.execute("""
             SELECT dep_time, arr_time, from_terminal, to_terminal, id
@@ -513,22 +551,54 @@ def get_flight(callsign):
 
             new_dep_term = dep_terminal if dep_terminal else db_dep_term
             new_arr_term = arr_terminal if arr_terminal else db_arr_term
-
+                
             if (
-                new_dep != db_dep or
-                new_arr != db_arr or
-                new_dep_term != db_dep_term or
-                new_arr_term != db_arr_term
+            new_dep != db_dep or
+            new_arr != db_arr or
+            new_dep_term != db_dep_term or
+            new_arr_term != db_arr_term
             ):
+
+                 # ---------------- ALERTS ----------------
+
+                if new_dep != db_dep:
+                    create_alert(
+                        callsign,
+                        "time_change",
+                        f"Departure time changed {db_dep} → {new_dep}"
+                    )
+
+                if new_arr != db_arr:
+                    create_alert(
+                        callsign,
+                        "time_change",
+                        f"Arrival time changed {db_arr} → {new_arr}"
+                    )
+
+                if new_dep_term != db_dep_term:
+                    create_alert(
+                        callsign,
+                        "terminal_change",
+                        f"Departure terminal changed {db_dep_term} → {new_dep_term}"
+                    )
+
+                if new_arr_term != db_arr_term:
+                    create_alert(
+                        callsign,
+                        "terminal_change",
+                        f"Arrival terminal changed {db_arr_term} → {new_arr_term}"
+                    )
+
+                # ---------------- UPDATE DB ----------------
 
                 c.execute("""
                     UPDATE trips
                     SET dep_time = %s,
                         arr_time = %s,
                         from_terminal = %s,
-                        to_terminal = %s  
+                        to_terminal = %s
                     WHERE id = %s
-            """, (new_dep, new_arr, new_dep_term, new_arr_term,trip_id))
+                """, (new_dep, new_arr, new_dep_term, new_arr_term, trip_id))
     # ---------------------------------------
     # GET FINAL STABILIZED STATUS FROM DB
     # ---------------------------------------
@@ -559,6 +629,34 @@ def get_flight(callsign):
             "arr_terminal": arr_terminal
         }
     })
+
+# -------------------- ALERTS API (HOMEPAGE) --------------------
+@APP.route("/api/alerts")
+def get_alerts():
+
+    conn = get_connection()
+    c = conn.cursor()
+
+    c.execute("""
+        SELECT alert_type, message
+        FROM alerts
+        ORDER BY created_at DESC
+        LIMIT 20
+    """)
+
+    rows = c.fetchall()
+
+    alerts = []
+
+    for r in rows:
+        alerts.append({
+            "type": r[0],
+            "message": r[1]
+        })
+
+    conn.close()
+
+    return jsonify({"alerts": alerts})
 
 # -------------------------------------------------
 # START
