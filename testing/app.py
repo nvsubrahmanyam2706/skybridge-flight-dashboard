@@ -51,6 +51,7 @@ def get_connection():
 # APP
 # -------------------------------------------------
 APP = Flask(__name__, static_folder="static", template_folder="templates")
+CORS(APP)
 
 DB_FILE = "skybridge_db"
 AVIATIONSTACK_ENDPOINT = "http://api.aviationstack.com/v1/flights"
@@ -205,7 +206,7 @@ def send_teams_alert(message):
             "text": message
         }
 
-        requests.post(
+        res = requests.post(
             TEAMS_WEBHOOK,
             json=payload,
             timeout=5
