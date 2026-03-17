@@ -714,27 +714,7 @@ def mark_alerts_seen():
     return jsonify({"status": "ok"})
 
 
-# -------------------- DB MIGRATION: ADD 'SEEN' COLUMN TO ALERTS --------------------
-@APP.route("/api/migrate-add-seen")
-def migrate_add_seen():
 
-    conn = get_connection()
-    c = conn.cursor()
-
-    try:
-        c.execute("""
-            ALTER TABLE alerts
-            ADD COLUMN seen BOOLEAN DEFAULT FALSE
-        """)
-        conn.commit()
-        msg = "✅ 'seen' column added successfully"
-
-    except Exception as e:
-        msg = f"⚠️ Already exists or failed: {str(e)}"
-
-    conn.close()
-
-    return jsonify({"message": msg})
 
 
 # -------------------------------------------------
