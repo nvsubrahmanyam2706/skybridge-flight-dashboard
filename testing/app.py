@@ -17,6 +17,7 @@ import psycopg2
 from urllib.parse import urlparse
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
+from flask_cors import CORS
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -201,7 +202,7 @@ def send_teams_alert(message):
     try:
 
         payload = {
-            "body": message
+            "text": message
         }
 
         requests.post(
@@ -209,6 +210,11 @@ def send_teams_alert(message):
             json=payload,
             timeout=5
         )
+
+                
+        print("🚀 Teams sent:", message)
+        print("Status:", res.status_code)
+        print("Response:", res.text)
 
     except Exception as e:
         print("Teams alert failed:", e)
@@ -692,9 +698,16 @@ def get_alerts():
 
     return jsonify({"alerts": alerts})
 
+
+
+
 # -------------------------------------------------
 # START
 # -------------------------------------------------
+
+APP = Flask(__name__, static_folder="static", template_folder="templates")
+CORS(APP)
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     APP.run(host="0.0.0.0", port=port, debug=True)
