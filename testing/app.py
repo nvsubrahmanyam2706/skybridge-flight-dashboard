@@ -25,6 +25,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # -------------------------------------------------
 load_dotenv()
 AVIATION_KEY = os.getenv("AVIATIONSTACK_API_KEY", "").strip()
+TEAMS_WEBHOOK = os.getenv("TEAMS_WEBHOOK")
 
 #For production, set DATABASE_URL to a PostgreSQL connection string
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -50,7 +51,7 @@ def get_connection():
 # -------------------------------------------------
 APP = Flask(__name__, static_folder="static", template_folder="templates")
 
-DB_FILE = "skybridge.db"
+DB_FILE = "skybridge_db"
 AVIATIONSTACK_ENDPOINT = "http://api.aviationstack.com/v1/flights"
 
 # -------------------------------------------------
@@ -78,6 +79,17 @@ def init_db():
         to_terminal TEXT,
         arr_time TEXT,
         status TEXT DEFAULT 'UNKNOWN'
+    )
+    """)
+
+        # Alerts table (ADD THIS)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS alerts (
+        id SERIAL PRIMARY KEY,
+        flight_no TEXT,
+        alert_type TEXT,
+        message TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
 
@@ -176,8 +188,30 @@ def create_alert(flight_no, alert_type, message):
             VALUES (%s, %s, %s)
         """, (flight_no, alert_type, message))
 
+        send_teams_alert(message)
+
     conn.commit()
     conn.close()
+
+def send_teams_alert(message):
+
+    if not TEAMS_WEBHOOK:
+        return
+
+    try:
+
+        payload = {
+            "body": message
+        }
+
+        requests.post(
+            TEAMS_WEBHOOK,
+            json=payload,
+            timeout=5
+        )
+
+    except Exception as e:
+        print("Teams alert failed:", e)
 
 # -------------------------------------------------
 # ROUTES
