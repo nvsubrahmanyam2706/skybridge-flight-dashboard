@@ -439,6 +439,45 @@ async function focusFlight(callsign, leader, id) {
   }
 
   updateSummaryCounters();
+  loadAlerts();
+}
+
+
+// ============================================================
+// LOAD ALERTS (HOMEPAGE BELL)
+// ============================================================
+
+function loadAlerts() {
+
+  fetch("/api/alerts")
+    .then(res => res.json())
+    .then(data => {
+
+      const panel = document.getElementById("alertsPanel");
+      const count = document.getElementById("alertCount");
+
+      if (!panel || !count) return;
+
+      panel.innerHTML = "";
+
+      data.alerts.forEach(a => {
+
+        const div = document.createElement("div");
+        div.className = "alert-item";
+
+        div.innerHTML = `
+          <b>${a.type}</b><br/>
+          ${a.message}
+        `;
+
+        panel.appendChild(div);
+
+      });
+
+      count.textContent = data.alerts.length;
+
+    })
+    .catch(err => console.error("Alert fetch error:", err));
 }
 
 /* ============================================================
@@ -448,6 +487,7 @@ async function focusFlight(callsign, leader, id) {
 window.onload = () => {
   initMap();
   loadTrips();
+  loadAlerts();
 };
 
 /* ============================================================
