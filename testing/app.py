@@ -91,7 +91,8 @@ def init_db():
         flight_no TEXT,
         alert_type TEXT,
         message TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        seen BOOLEAN DEFAULT FALSE
     )
     """)
 
@@ -669,10 +670,10 @@ def get_alerts():
     c = conn.cursor()
 
     c.execute("""
-        SELECT alert_type, message
-        FROM alerts
-        ORDER BY created_at DESC
-        LIMIT 20
+    SELECT id, flight_no, alert_type, message, created_at, seen
+    FROM alerts
+    ORDER BY created_at DESC
+    LIMIT 50
     """)
 
     rows = c.fetchall()
@@ -681,15 +682,59 @@ def get_alerts():
 
     for r in rows:
         alerts.append({
-            "type": r[0],
-            "message": r[1]
+            "id": r[0],
+            "flight_no": r[1],
+            "type": r[2],
+            "message": r[3],
+            "created_at": str(r[4]),
+            "seen": r[5]
         })
+
 
     conn.close()
 
     return jsonify({"alerts": alerts})
 
+# -------------------- MARK ALERTS SEEN (HOMEPAGE) --------------------
+@APP.route("/api/alerts/mark-seen", methods=["POST"])
+def mark_alerts_seen():
 
+    conn = get_connection()
+    c = conn.cursor()
+
+    c.execute("""
+        UPDATE alerts
+        SET seen = TRUE
+        WHERE seen = FALSE
+    """)
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({"status": "ok"})
+
+
+# -------------------- DB MIGRATION: ADD 'SEEN' COLUMN TO ALERTS --------------------
+@APP.route("/api/migrate-add-seen")
+def migrate_add_seen():
+
+    conn = get_connection()
+    c = conn.cursor()
+
+    try:
+        c.execute("""
+            ALTER TABLE alerts
+            ADD COLUMN seen BOOLEAN DEFAULT FALSE
+        """)
+        conn.commit()
+        msg = "✅ 'seen' column added successfully"
+
+    except Exception as e:
+        msg = f"⚠️ Already exists or failed: {str(e)}"
+
+    conn.close()
+
+    return jsonify({"message": msg})
 
 
 # -------------------------------------------------
