@@ -209,7 +209,8 @@ def send_teams_alert(message):
         res = requests.post(
             TEAMS_WEBHOOK,
             json=payload,
-            timeout=5
+            timeout=5,
+            verify=False
         )
 
                 
@@ -552,18 +553,6 @@ def get_flight(callsign):
         dep_terminal = departure.get("terminal")
         arr_terminal = arrival.get("terminal")
 
-        # ---------------------------------------
-        # DELAY DETECTION
-        # ---------------------------------------
-        delay = departure.get("delay")
-
-        if delay and delay >= 15:
-            create_alert(
-                callsign,
-                "delay",
-                f"Flight delay detected ({delay} minutes)"
-            )
-
     except Exception as e:
         print("Flight parsing error:", e)
 
@@ -574,7 +563,7 @@ def get_flight(callsign):
     if dep_time or arr_time or dep_terminal or arr_terminal:
 
         c.execute("""
-            SELECT dep_time, arr_time, from_terminal, to_terminal, id
+            SELECT dep_time, arr_time, from_terminal, to_terminal, id, leader_name
             FROM trips
             WHERE callsign = %s
             AND status != 'ENDED'
@@ -585,7 +574,7 @@ def get_flight(callsign):
         row = c.fetchone()
 
         if row:
-            db_dep, db_arr, db_dep_term, db_arr_term, trip_id = row
+            db_dep, db_arr, db_dep_term, db_arr_term, trip_id, leader_name = row
 
             new_dep = dep_time if dep_time else db_dep
             new_arr = arr_time if arr_time else db_arr
@@ -600,34 +589,35 @@ def get_flight(callsign):
             new_arr_term != db_arr_term
             ):
 
-                 # ---------------- ALERTS ----------------
+                changes = []
 
+                # Time changes
                 if new_dep != db_dep:
-                    create_alert(
-                        callsign,
-                        "time_change",
-                        f"Departure time changed {db_dep} → {new_dep}"
-                    )
+                    changes.append(f"Departure: {db_dep} → {new_dep}")
 
                 if new_arr != db_arr:
-                    create_alert(
-                        callsign,
-                        "time_change",
-                        f"Arrival time changed {db_arr} → {new_arr}"
-                    )
+                    changes.append(f"Arrival: {db_arr} → {new_arr}")
 
+                # Terminal changes
                 if new_dep_term != db_dep_term:
-                    create_alert(
-                        callsign,
-                        "terminal_change",
-                        f"Departure terminal changed {db_dep_term} → {new_dep_term}"
-                    )
+                    changes.append(f"Dep Terminal: {db_dep_term} → {new_dep_term}")
 
                 if new_arr_term != db_arr_term:
+                    changes.append(f"Arr Terminal: {db_arr_term} → {new_arr_term}")
+
+                # Delay
+                delay = flight_obj.get("departure", {}).get("delay")
+                if delay and delay >= 15:
+                    changes.append(f"Delay: {delay} min")
+
+                # ✅ FINAL ALERT (ONLY ONE)
+                if changes:
+                    message = f"{callsign} | Leader: {leader_name} | " + " | ".join(changes)
+
                     create_alert(
                         callsign,
-                        "terminal_change",
-                        f"Arrival terminal changed {db_arr_term} → {new_arr_term}"
+                        "flight_update",
+                        message
                     )
 
                 # ---------------- UPDATE DB ----------------
