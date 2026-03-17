@@ -705,10 +705,6 @@ def get_alerts():
 # -------------------------------------------------
 # START
 # -------------------------------------------------
-
-APP = Flask(__name__, static_folder="static", template_folder="templates")
-CORS(APP)
-
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     APP.run(host="0.0.0.0", port=port, debug=True)
