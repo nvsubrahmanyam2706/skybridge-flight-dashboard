@@ -220,20 +220,32 @@ def send_teams_alert(message):
                         "version": "1.4",
                         "body": [
 
-                            # 🔴 / 🟢 HEADER
+
+                            # 🔴 STRONG HEADER BAR
                             {
                                 "type": "Container",
-                                "style": color,
-                                "bleed": True,
                                 "items": [
                                     {
                                         "type": "TextBlock",
-                                        "text": message.split("|")[0] + "|" + message.split("|")[1],
+                                        "text": "🔴 DELAY ALERT" if has_delay else "🟢 ON TRACK",
                                         "weight": "Bolder",
-                                        "size": "Medium",
-                                        "color": "Light"
+                                        "size": "Small",
+                                        "color": "Attention" if has_delay else "Good"
+                                    },
+                                    {
+                                        "type": "TextBlock",
+                                        "text": f"✈️ {callsign} | Leader: {leader_name}",
+                                        "weight": "Bolder",
+                                        "size": "Medium"
                                     }
                                 ]
+                            },
+
+                            # 🔥 ADD THIS BLOCK HERE
+                            {
+                                "type": "Container",
+                                "separator": True,
+                                "spacing": "Small"
                             },
 
                             # 📄 DETAILS
