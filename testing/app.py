@@ -595,24 +595,24 @@ def get_flight(callsign):
             ):
 
                 changes = []
-
+              
                 # Time changes
                 if new_dep != db_dep:
-                    changes.append(f"Departure: {db_dep} → {new_dep}")
+                    changes.append(f"Departure time changed from {db_dep} → {new_dep}")
 
                 if new_arr != db_arr:
-                    changes.append(f"Arrival: {db_arr} → {new_arr}")
+                    changes.append(f"Arrival time changed from {db_arr} → {new_arr}")
 
                 # Terminal changes
                 if new_dep_term != db_dep_term:
-                    changes.append(f"Dep Terminal: {db_dep_term} → {new_dep_term}")
+                    changes.append(f"Departure terminal changed from {db_dep_term} → {new_dep_term}")
 
                 if new_arr_term != db_arr_term:
-                    changes.append(f"Arr Terminal: {db_arr_term} → {new_arr_term}")
+                    changes.append(f"Arrival terminal changed from {db_arr_term} → {new_arr_term}")
 
-                # Delay
+                # Delay (keep simple as you asked)
                 delay = flight_obj.get("departure", {}).get("delay")
-                if delay and delay >= 15:
+                if delay and delay > 0:
                     changes.append(f"Delay: {delay} min")
 
                 # ✅ FINAL ALERT (ONLY ONE)
