@@ -206,7 +206,9 @@ def send_teams_alert(message):
     try:
 
         payload = {
-            "message": message
+            "body": {
+                "content": message
+            }
         }
 
         res = requests.post(
