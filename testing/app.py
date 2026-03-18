@@ -227,22 +227,23 @@ def send_teams_alert(message):
                             # 🔴 STRONG HEADER BAR
                             {
                                 "type": "Container",
-                                "style": "attention" if has_delay else "good",
+                                "style": "attention",
                                 "bleed": True,
                                 "items": [
                                     {
                                         "type": "TextBlock",
-                                        "text": "🔴 DELAY ALERT" if has_delay else "🟢 ON TRACK",
+                                        "text": "🔴 DELAY ALERT",
                                         "weight": "Bolder",
-                                        "size": "Small",
+                                        "size": "Medium",
                                         "color": "Light"
                                     },
                                     {
                                         "type": "TextBlock",
                                         "text": f"✈️ {title}",
                                         "weight": "Bolder",
-                                        "size": "Medium",
-                                        "color": "Light"
+                                        "size": "Large",
+                                        "color": "Light",
+                                        "spacing": "None"
                                     }
                                 ]
                             },
@@ -256,13 +257,14 @@ def send_teams_alert(message):
 
                             # 📄 DETAILS
                             {
-                                "type": "TextBlock",
-                                "text": "\n".join([
-                                    "• " + part.strip()
+                                "type": "FactSet",
+                                "facts": [
+                                    {
+                                        "title": "•",
+                                        "value": part.strip()
+                                    }
                                     for part in message.split("|")[2:]
-                                ]),
-                                "wrap": True,
-                                "spacing": "Medium"
+                                ]
                             }
                         ]
                     }
