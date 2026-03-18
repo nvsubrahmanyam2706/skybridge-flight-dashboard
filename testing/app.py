@@ -635,6 +635,8 @@ def get_flight(callsign):
                         to_terminal = %s
                     WHERE id = %s
                 """, (new_dep, new_arr, new_dep_term, new_arr_term, trip_id))
+
+    
     # ---------------------------------------
     # GET FINAL STABILIZED STATUS FROM DB
     # ---------------------------------------
