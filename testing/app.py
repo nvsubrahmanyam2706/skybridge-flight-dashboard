@@ -235,7 +235,7 @@ def send_teams_alert(message):
                                         "text": "🔴 DELAY ALERT" if has_delay else "🟢 ON TRACK",
                                         "weight": "Bolder",
                                         "size": "Small",
-                                        "color": "Light" if has_delay else "Good"
+                                        "color": "Light"
                                     },
                                     {
                                         "type": "TextBlock",
