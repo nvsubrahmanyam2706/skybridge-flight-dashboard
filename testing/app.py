@@ -204,16 +204,57 @@ def send_teams_alert(message):
         return
 
     try:
+        # detect delay
+        has_delay = "Delay" in message
 
-        payload = {
-            "body": {
-                "content": message
-            }
+        color = "Attention" if has_delay else "Good"
+
+        card_payload = {
+            "type": "message",
+            "attachments": [
+                {
+                    "contentType": "application/vnd.microsoft.card.adaptive",
+                    "content": {
+                        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                        "type": "AdaptiveCard",
+                        "version": "1.4",
+                        "body": [
+
+                            # 🔴 / 🟢 HEADER
+                            {
+                                "type": "Container",
+                                "style": color,
+                                "bleed": True,
+                                "items": [
+                                    {
+                                        "type": "TextBlock",
+                                        "text": message.split("|")[0] + "|" + message.split("|")[1],
+                                        "weight": "Bolder",
+                                        "size": "Medium",
+                                        "color": "Light"
+                                    }
+                                ]
+                            },
+
+                            # 📄 DETAILS
+                            {
+                                "type": "TextBlock",
+                                "text": "\n".join([
+                                    "• " + part.strip()
+                                    for part in message.split("|")[2:]
+                                ]),
+                                "wrap": True,
+                                "spacing": "Medium"
+                            }
+                        ]
+                    }
+                }
+            ]
         }
 
         res = requests.post(
             TEAMS_WEBHOOK,
-            json=payload,
+            json=card_payload,
             timeout=5,
             verify=False
         )
