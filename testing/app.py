@@ -198,6 +198,8 @@ def create_alert(flight_no, alert_type, message):
 
 def send_teams_alert(message):
 
+    print("Webhook URL:", TEAMS_WEBHOOK)
+
     if not TEAMS_WEBHOOK:
         return
 
