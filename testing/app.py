@@ -207,7 +207,11 @@ def send_teams_alert(message):
         # detect delay
         has_delay = "Delay" in message
 
-        color = "Attention" if has_delay else "Good"
+        color = "Attention" if has_delay else "Good" 
+
+        # extract title
+        parts = message.split("|")
+        title = parts[0].strip() + " | " + parts[1].strip()
 
         card_payload = {
             "type": "message",
@@ -220,23 +224,25 @@ def send_teams_alert(message):
                         "version": "1.4",
                         "body": [
 
-
                             # 🔴 STRONG HEADER BAR
                             {
                                 "type": "Container",
+                                "style": "attention" if has_delay else "good",
+                                "bleed": True,
                                 "items": [
                                     {
                                         "type": "TextBlock",
                                         "text": "🔴 DELAY ALERT" if has_delay else "🟢 ON TRACK",
                                         "weight": "Bolder",
                                         "size": "Small",
-                                        "color": "Attention" if has_delay else "Good"
+                                        "color": "Light" if has_delay else "Good"
                                     },
                                     {
                                         "type": "TextBlock",
-                                        "text": f"✈️ {callsign} | Leader: {leader_name}",
+                                        "text": f"✈️ {title}",
                                         "weight": "Bolder",
-                                        "size": "Medium"
+                                        "size": "Medium",
+                                        "color": "Light"
                                     }
                                 ]
                             },
