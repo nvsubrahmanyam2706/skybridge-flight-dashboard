@@ -804,3 +804,117 @@ body > * {
 .menu-dropdown div:hover {
   background: rgba(0,250,194,0.2);
 }
+
+/* ============================================================
+   📱 RESPONSIVE DESIGN — SKYBRIDGE (ADD BELOW EVERYTHING)
+   ============================================================ */
+
+/* ================================
+   TABLET VIEW (<= 1024px)
+================================ */
+
+@media (max-width: 1024px) {
+
+  .main-layout {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .side-panel {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .map-panel {
+    height: 350px;
+  }
+
+  #flights-map {
+    height: 100%;
+    min-height: 300px;
+  }
+}
+
+/* ================================
+   MOBILE VIEW (<= 768px)
+================================ */
+
+@media (max-width: 768px) {
+
+  /* HEADER FIX */
+  .header-bar {
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .logo {
+    position: static;
+    width: 140px;
+  }
+
+  .title {
+    font-size: 18px;
+    text-align: center;
+  }
+
+  .add-trip-btn {
+    position: static;
+    width: 100%;
+    font-size: 13px;
+  }
+
+  /* SUMMARY BAR STACK */
+  .summary-bar {
+    flex-direction: column;
+    gap: 8px;
+    font-size: 13px;
+  }
+
+  /* CARDS FIX */
+  .flight-card {
+    min-width: 100%;
+    padding: 14px;
+    font-size: 14px;
+  }
+
+  .flight-name {
+    font-size: 15px;
+  }
+
+  .leader-name {
+    font-size: 12px;
+  }
+
+  /* ROUTE */
+  .airport-code {
+    font-size: 16px;
+  }
+
+  .route-arrow {
+    font-size: 16px;
+  }
+
+  /* MAP */
+  .map-panel {
+    height: 280px;
+  }
+
+  #flights-map {
+    min-height: 250px;
+  }
+
+  /* MODAL FIX */
+  .modal-box {
+    width: 95%;
+    max-height: 90vh;
+  }
+
+  /* DATABASE BUTTON */
+  .database-btn {
+    right: 10px;
+    bottom: 10px;
+    padding: 10px 14px;
+    font-size: 12px;
+  }
+}
