@@ -235,7 +235,6 @@ def send_teams_alert(message):
                                         "text": "🔴 DELAY ALERT",
                                         "weight": "Bolder",
                                         "size": "Medium",
-                                        #"color": "Dark"
                                         "color": "Attention"
                                     },
                                     {
