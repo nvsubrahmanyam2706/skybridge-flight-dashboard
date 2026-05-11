@@ -242,6 +242,7 @@ def send_teams_alert(message):
                                         "text": f"✈️ {title}",
                                         "weight": "Bolder",
                                         "size": "Large",
+                                        #"color": "Dark"
                                         "color": "Attention",
                                         "spacing": "None"
                                     }
