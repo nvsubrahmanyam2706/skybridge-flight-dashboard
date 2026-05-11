@@ -227,7 +227,7 @@ def send_teams_alert(message):
                             # 🔴 STRONG HEADER BAR
                             {
                                 "type": "Container",
-                                "style": "attention",
+                                "style": "default",
                                 "bleed": True,
                                 "items": [
                                     {
@@ -235,14 +235,16 @@ def send_teams_alert(message):
                                         "text": "🔴 DELAY ALERT",
                                         "weight": "Bolder",
                                         "size": "Medium",
-                                        "color": "Light"
+                                        #"color": "Dark"
+                                        "color": "Attention"
                                     },
                                     {
                                         "type": "TextBlock",
                                         "text": f"✈️ {title}",
                                         "weight": "Bolder",
                                         "size": "Large",
-                                        "color": "Light",
+                                        #"color": "Dark"
+                                        "color": "Attention",
                                         "spacing": "None"
                                     }
                                 ]
